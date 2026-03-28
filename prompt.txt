@@ -1,0 +1,35 @@
+/deep-interview
+create and run /autoresearch
+
+Act as an Expert Full-Stack Developer and UI/UX Specialist. Your goal is to build the Phase 1 Web MVP for "Kotoka" — an EdTech app designed to win 1st place at the CEDT Innovation Summit 2026 (https://cis.cedt.community/).
+
+Before writing any code, strictly read and internalize these documents:
+1. PRD.md
+2. Business_model.md
+3. Master_Prompt.md
+
+Tech Stack:
+- Framework: Next.js (App Router) + React + TypeScript
+- Styling: TailwindCSS (Mobile-first responsive design)
+- AI Integration: Gemini 2.5 Flash API
+- Database: Dockerized local DB (Mockup for Phase 1 testing)
+
+Target Audience: Working adults aged 22–35 in Thailand.
+
+Core Features to Build:
+1. Sensory UI/UX: Engaging, smooth micro-interactions that feel entertaining and intuitive.
+2. "Snap & Learn" Flow: UI for uploading/capturing an image, connecting to Gemini 2.5 Flash to return contextual vocabulary.
+3. "Sensory Tag": UI for users to tag their emotions/atmosphere related to the vocabulary.
+
+Execution & Token Optimization Strategy:
+- Maximize information density. DO NOT output conversational filler or boilerplate explanations.
+- Write highly modular, DRY (Don't Repeat Yourself) code. Break components into small, reusable files.
+- Deliver production-ready, beautiful UI code. Do not sacrifice UX/UI quality for token limits.
+- Output everything into the directory: /WorkSpace_Alpha
+- Final step: Provide exact terminal commands to locally deploy and run this web app via Docker and Next.js.
+
+Design & Asset References:
+- Read from /Kotoka-DEMO: Extract color palettes, typography, and visual language to use as a reference style. ONLY COPY THE DESIGN/STYLING, NOT THE UNDERLYING CODE STRUCTURE.
+- Read from /WorkSpace_icon: Assume all logos, icons, favicons, and picture resources are here. Map these correctly to the 'public/' directory in the Next.js setup.
+
+most important dynamics token management minimize token use as much as possible!!!
