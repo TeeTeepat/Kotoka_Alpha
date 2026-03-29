@@ -144,3 +144,13 @@ input[type="range"]::-moz-range-thumb {
     transform: translateY(-20px) scale(0.95);
   }
 }
+
+@keyframes holo-shimmer {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.holo-shimmer {
+  animation: holo-shimmer 4s ease infinite;
+}

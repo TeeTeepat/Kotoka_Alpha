@@ -6,7 +6,6 @@ import { motion } from "framer-motion";
 import { Camera, Sparkles, BookOpen, Flame } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { loadStats } from "@/lib/utils";
 import type { DeckWithWords } from "@/types";
 
 export default function HomePage() {
@@ -16,14 +15,10 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setStats(loadStats());
-
     async function load() {
       try {
-        // Sync kotoka-uid with NextAuth session (fixes identity mismatch)
         await fetch("/api/auth/init", { method: "POST" });
 
-        // Check if user has selected a target language
         const userRes = await fetch("/api/user");
         if (userRes.ok) {
           const user = await userRes.json();
@@ -31,15 +26,22 @@ export default function HomePage() {
             router.push("/onboarding/language");
             return;
           }
+          setStats(s => ({ ...s, hearts: user.hearts, streak: user.streak, coins: user.coins }));
         }
 
         const deckRes = await fetch("/api/decks");
         const data = await deckRes.json();
-        if (Array.isArray(data)) setDecks(data);
+        if (Array.isArray(data)) {
+          setDecks(data);
+          const masteredWords = data.reduce((acc: number, d: { words: { masteryCount: number; interval: number }[] }) =>
+            acc + d.words.filter(w => w.masteryCount >= 5 || w.interval >= 21).length, 0);
+          setStats(s => ({ ...s, wordsLearned: masteredWords }));
+        }
       } catch {
         // ignore
       } finally {
         setLoading(false);
+        window.dispatchEvent(new Event("kotoka-app-ready"));
       }
     }
 
@@ -61,10 +63,10 @@ export default function HomePage() {
           className="relative w-32 h-32 mx-auto mb-4"
         >
           <Image
-            src="/koko-sit.jpg"
+            src="/koko-sit-removebg.png"
             alt="Koko"
             fill
-            className="object-contain rounded-3xl"
+            className="object-contain"
             priority
           />
         </motion.div>
@@ -110,7 +112,7 @@ export default function HomePage() {
             <p className="font-heading font-extrabold text-xl text-dark">
               {stats.wordsLearned}
             </p>
-            <p className="font-body text-[11px] text-gray-400">Words Learned</p>
+            <p className="font-body text-[11px] text-gray-400">Mastered Words</p>
           </div>
         </div>
         <div className="card-base p-4 flex items-center gap-3">

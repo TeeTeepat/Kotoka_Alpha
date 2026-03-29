@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
   try {
     const userId = await getUserId();
     const body = await req.json();
-    const { sceneDesc, emotionScore, atmosphere, ambientSound, note, colorPalette, vocabulary } = body;
+    const { sceneDesc, emotionScore, atmosphere, ambientSound, note, colorPalette, vocabulary, locationLat, locationLng, locationName } = body;
 
     if (!sceneDesc || !vocabulary?.length) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -41,6 +41,9 @@ export async function POST(req: NextRequest) {
         ambientSound: ambientSound ?? "cafe",
         note: note || null,
         colorPalette: colorPalette ?? "#1ad3e2",
+        locationLat: locationLat ?? null,
+        locationLng: locationLng ?? null,
+        locationName: locationName ?? null,
         words: {
           create: vocabulary.map((v: {
             word: string; translation: string; example: string;

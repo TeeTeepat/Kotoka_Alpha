@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  LogOut, Heart, Flame, Coins, Target, Trophy, Globe, ChevronRight,
+  LogOut, Heart, Flame, Coins, Target, Trophy, Globe, ChevronRight, MapPin,
 } from "lucide-react";
 import type { GachaItemData } from "@/types";
 
@@ -116,6 +116,83 @@ function LuggageCard({ items }: { items: GachaItemData[] }) {
   );
 }
 
+// ─── Mini Memory Map ──────────────────────────────────────────────────────────
+interface MapPin { id: string; locationName: string; colorPalette: string; locationLat: number; locationLng: number; words: { id: string; word: string }[]; }
+
+const DEMO_MAP_PINS: MapPin[] = [
+  { id: "d1", locationName: "Siam BTS", colorPalette: "#1ad3e2", locationLat: 13.7460, locationLng: 100.5331, words: [{ id: "w1", word: "escalator" }] },
+  { id: "d2", locationName: "Asok", colorPalette: "#f59e0b", locationLat: 13.7375, locationLng: 100.5601, words: [{ id: "w2", word: "street food" }] },
+  { id: "d3", locationName: "Lumpini", colorPalette: "#10b981", locationLat: 13.7282, locationLng: 100.5418, words: [{ id: "w3", word: "fountain" }] },
+];
+
+function projectPin(lat: number, lng: number, pins: MapPin[]) {
+  const lats = pins.map(p => p.locationLat), lngs = pins.map(p => p.locationLng);
+  const minLat = Math.min(...lats), maxLat = Math.max(...lats);
+  const minLng = Math.min(...lngs), maxLng = Math.max(...lngs);
+  const padLat = Math.max((maxLat - minLat) * 0.25, 0.005);
+  const padLng = Math.max((maxLng - minLng) * 0.25, 0.005);
+  const x = 0.1 + ((lng - (minLng - padLng)) / ((maxLng + padLng) - (minLng - padLng))) * 0.8;
+  const y = 0.1 + (((maxLat + padLat) - lat) / ((maxLat + padLat) - (minLat - padLat))) * 0.8;
+  return { x: x * 100, y: y * 100 };
+}
+
+function MiniMemoryMap({ pins }: { pins: MapPin[] }) {
+  const activePins = pins.length > 0 ? pins : DEMO_MAP_PINS;
+  return (
+    <div className="card-base p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <MapPin className="w-4 h-4 text-primary" />
+          <h2 className="font-heading font-extrabold text-base text-dark">Memory Map</h2>
+        </div>
+        <Link href="/memory-map" className="flex items-center gap-1 text-xs font-body text-primary">
+          View all <ChevronRight className="w-3 h-3" />
+        </Link>
+      </div>
+
+      {pins.length === 0 && (
+        <p className="font-body text-[11px] text-amber-600 bg-amber-50 rounded-xl px-3 py-1.5">
+          Demo — snap a photo to mark real locations
+        </p>
+      )}
+
+      <div className="relative w-full rounded-2xl overflow-hidden border border-card-border" style={{ height: 140 }}>
+        <div className="absolute inset-0 bg-gradient-to-br from-cyan-50 via-teal-50/70 to-emerald-50" />
+        {[25, 50, 75].map(p => (
+          <div key={`h${p}`} className="absolute inset-x-0 border-t border-primary/10" style={{ top: `${p}%` }} />
+        ))}
+        {[25, 50, 75].map(p => (
+          <div key={`v${p}`} className="absolute inset-y-0 border-l border-primary/10" style={{ left: `${p}%` }} />
+        ))}
+        {activePins.slice(0, 8).map((pin, i) => {
+          const { x, y } = projectPin(pin.locationLat, pin.locationLng, activePins);
+          return (
+            <motion.div key={pin.id}
+              initial={{ scale: 0 }} animate={{ scale: 1 }}
+              transition={{ delay: i * 0.07, type: "spring", stiffness: 300, damping: 20 }}
+              className="absolute -translate-x-1/2 -translate-y-1/2"
+              style={{ left: `${x}%`, top: `${y}%` }}>
+              <div className="flex flex-col items-center gap-0.5">
+                <div className="w-5 h-5 rounded-full border-2 border-white shadow-sm flex items-center justify-center"
+                  style={{ backgroundColor: pin.colorPalette }}>
+                  <span className="text-[7px] text-white font-bold">{pin.words.length}</span>
+                </div>
+                <div className="bg-white/90 rounded px-1 py-0.5 shadow-sm">
+                  <span className="text-[7px] font-heading font-bold text-dark whitespace-nowrap">{pin.locationName}</span>
+                </div>
+              </div>
+            </motion.div>
+          );
+        })}
+      </div>
+
+      <p className="font-body text-xs text-gray-400 text-center">
+        {activePins.length} memor{activePins.length === 1 ? "y" : "ies"} on the map
+      </p>
+    </div>
+  );
+}
+
 // ─── Main Profile Page ─────────────────────────────────────────────────────────
 export default function ProfilePage() {
   const { data: session } = useSession();
@@ -126,12 +203,15 @@ export default function ProfilePage() {
   } | null>(null);
   const [items, setItems] = useState<GachaItemData[]>([]);
   const [decksCount, setDecksCount] = useState(0);
+  const [mapPins, setMapPins] = useState<MapPin[]>([]);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   useEffect(() => {
     fetch("/api/user").then((r) => r.ok ? r.json() : null).then((d) => d && setUser(d));
     fetch("/api/gacha/items").then((r) => r.ok ? r.json() : []).then(setItems);
     fetch("/api/decks").then((r) => r.ok ? r.json() : []).then((d) => Array.isArray(d) && setDecksCount(d.length));
+    fetch("/api/memory-map").then((r) => r.ok ? r.json() : []).then((d) => Array.isArray(d) && setMapPins(d));
   }, []);
 
   const displayName = session?.user?.name ?? user?.name ?? "Learner";
@@ -263,6 +343,11 @@ export default function ProfilePage() {
         <LuggageCard items={items} />
       </motion.div>
 
+      {/* Mini Memory Map */}
+      <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.22, duration: 0.4 }}>
+        <MiniMemoryMap pins={mapPins} />
+      </motion.div>
+
       {/* Logout */}
       <motion.div
         initial={{ opacity: 0, y: 16 }}
@@ -272,7 +357,7 @@ export default function ProfilePage() {
         <motion.button
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.97 }}
-          onClick={handleLogout}
+          onClick={() => setShowLogoutConfirm(true)}
           disabled={loggingOut}
           className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-red-50 border border-red-200 text-red-600 font-heading font-bold text-sm hover:bg-red-100 transition-colors disabled:opacity-60"
         >
@@ -284,6 +369,41 @@ export default function ProfilePage() {
           {loggingOut ? "Signing out…" : "Log Out"}
         </motion.button>
       </motion.div>
+
+      {/* Logout confirmation modal */}
+      <AnimatePresence>
+        {showLogoutConfirm && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm flex items-center justify-center px-6"
+            onClick={() => setShowLogoutConfirm(false)}>
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }} transition={{ type: "spring", stiffness: 300, damping: 25 }}
+              onClick={e => e.stopPropagation()}
+              className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-xl flex flex-col gap-4">
+              <div className="flex flex-col items-center gap-2 text-center">
+                <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center">
+                  <LogOut className="w-6 h-6 text-red-500" />
+                </div>
+                <h2 className="font-heading font-extrabold text-lg text-dark">Log Out?</h2>
+                <p className="font-body text-sm text-gray-500">Are you sure you want to log out of Kotoka?</p>
+              </div>
+              <div className="flex gap-3">
+                <motion.button whileTap={{ scale: 0.97 }}
+                  onClick={() => setShowLogoutConfirm(false)}
+                  className="flex-1 py-3 rounded-2xl border border-card-border font-heading font-bold text-sm text-gray-600 hover:bg-gray-50 transition-colors">
+                  Cancel
+                </motion.button>
+                <motion.button whileTap={{ scale: 0.97 }}
+                  onClick={handleLogout} disabled={loggingOut}
+                  className="flex-1 py-3 rounded-2xl bg-red-500 font-heading font-bold text-sm text-white hover:bg-red-600 transition-colors disabled:opacity-60 flex items-center justify-center gap-2">
+                  {loggingOut && <div className="w-3.5 h-3.5 border-2 border-red-300 border-t-white rounded-full animate-spin" />}
+                  {loggingOut ? "Signing out…" : "Log Out"}
+                </motion.button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

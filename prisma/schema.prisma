@@ -17,23 +17,27 @@ model Deck {
   note         String?
   colorPalette String   @default("#1ad3e2")
   createdAt    DateTime @default(now())
+  locationLat  Float?
+  locationLng  Float?
+  locationName String?
   words        Word[]
   user         User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
 }
 
 model Word {
-  id             String   @id @default(cuid())
+  id             String    @id @default(cuid())
   deckId         String
   word           String
   translation    String
   example        String
   difficulty     String
   phonetic       String
-  masteryCount   Int      @default(0)
-  easeFactor     Float    @default(2.5)
-  interval       Int      @default(1)
-  nextReviewAt   DateTime @default(now())
-  deck           Deck     @relation(fields: [deckId], references: [id], onDelete: Cascade)
+  masteryCount   Int       @default(0)
+  easeFactor     Float     @default(2.5)
+  interval       Int       @default(1)
+  nextReviewAt   DateTime  @default(now())
+  lastReviewedAt DateTime?
+  deck           Deck      @relation(fields: [deckId], references: [id], onDelete: Cascade)
 }
 
 model User {

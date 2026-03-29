@@ -85,10 +85,16 @@ function StudySession({ deck, onExit }: { deck: DeckWithWords; onExit: () => voi
     if (index + 1 >= sorted.length) {
       setDone(true);
       try {
-        const stats = JSON.parse(localStorage.getItem("kotoka-stats") || '{"hearts":5,"streak":0,"coins":0,"wordsLearned":0}');
-        stats.coins += 5;
-        localStorage.setItem("kotoka-stats", JSON.stringify(stats));
-        window.dispatchEvent(new Event("kotoka-stats-update"));
+        const res = await fetch("/api/user");
+        if (res.ok) {
+          const user = await res.json();
+          await fetch("/api/user", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ coins: user.coins + 5, streak: user.streak + 1 }),
+          });
+          window.dispatchEvent(new Event("kotoka-stats-update"));
+        }
       } catch { /* ignore */ }
     } else {
       setIndex(i => i + 1);
@@ -98,7 +104,7 @@ function StudySession({ deck, onExit }: { deck: DeckWithWords; onExit: () => voi
       await fetch(`/api/words/${word.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(srsUpdate),
+        body: JSON.stringify({ ...srsUpdate, quality }),
       });
     } catch { /* ignore */ }
 

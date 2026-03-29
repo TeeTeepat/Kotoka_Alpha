@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Layers, MessageSquare, Mic, Headphones } from "lucide-react";
+import Image from "next/image";
 
 const MODES = [
   {
@@ -88,6 +89,13 @@ export default function ReviewPage() {
           );
         })}
       </div>
+
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1, y: [0, -6, 0] }}
+        transition={{ opacity: { delay: 0.4, duration: 0.5 }, y: { duration: 3, repeat: Infinity, ease: "easeInOut" } }}
+        className="flex justify-center mt-6">
+        <Image src="/koko-stand-removebg.png" alt="Koko" width={160} height={160}
+          className="object-contain" />
+      </motion.div>
     </div>
   );
 }

@@ -55,6 +55,8 @@ interface SpeechRec {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   onresult: ((e: any) => void) | null;
   onend: (() => void) | null;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  onerror: ((e: any) => void) | null;
   start(): void;
   stop(): void;
 }
@@ -81,6 +83,7 @@ function useSpeechRecognition() {
       setListening(false);
     };
     rec.onend = () => setListening(false);
+    rec.onerror = () => setListening(false); // prevent unhandled Event rejection
     recRef.current = rec;
   }, []);
 
@@ -88,8 +91,12 @@ function useSpeechRecognition() {
     if (!recRef.current) return;
     setTranscript("");
     if (lang) recRef.current.lang = lang;
-    recRef.current.start();
-    setListening(true);
+    try {
+      recRef.current.start();
+      setListening(true);
+    } catch {
+      setListening(false);
+    }
   };
 
   const stop = () => {

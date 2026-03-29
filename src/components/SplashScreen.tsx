@@ -14,8 +14,26 @@ export default function SplashScreen() {
       return;
     }
     sessionStorage.setItem("kotoka-splash", "1");
-    const t = setTimeout(() => setVisible(false), 2000);
-    return () => clearTimeout(t);
+
+    let appReady = false;
+    let minElapsed = false;
+    const tryHide = () => { if (appReady && minElapsed) setVisible(false); };
+
+    // Minimum display time so splash never flashes too briefly
+    const minTimer = setTimeout(() => { minElapsed = true; tryHide(); }, 6500);
+
+    // Wait for the app to signal it's done loading
+    const onReady = () => { appReady = true; tryHide(); };
+    window.addEventListener("kotoka-app-ready", onReady);
+
+    // Safety fallback — never block longer than 6s
+    const fallback = setTimeout(() => setVisible(false), 6000);
+
+    return () => {
+      clearTimeout(minTimer);
+      clearTimeout(fallback);
+      window.removeEventListener("kotoka-app-ready", onReady);
+    };
   }, []);
 
   return (

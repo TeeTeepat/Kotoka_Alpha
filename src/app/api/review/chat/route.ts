@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
     );
 
     const chat = geminiModel.startChat({
-      systemInstruction,
+      systemInstruction: { role: "user", parts: [{ text: systemInstruction }] },
       history: messages.slice(0, -1).map((m: { role: string; content: string }) => ({
         role: m.role === "user" ? "user" : "model",
         parts: [{ text: m.content }],

@@ -45,6 +45,7 @@ function DictationSession({ deck, onExit }: { deck: DeckWithWords; onExit: () =>
     window.speechSynthesis.cancel();
     const utt = new SpeechSynthesisUtterance(currentWord.word);
     utt.rate = 0.85;
+    utt.onerror = () => {};
     synthRef.current = utt;
     window.speechSynthesis.speak(utt);
     setReplays(r => r + 1);

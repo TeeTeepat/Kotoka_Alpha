@@ -84,7 +84,9 @@ function ChatSession({
                   ? "bg-primary text-white rounded-br-sm"
                   : "bg-white border border-card-border text-dark rounded-bl-sm shadow-card"
               }`}>
-                {msg.content}
+                {msg.content.split(/\*\*(.+?)\*\*/g).map((part, j) =>
+                  j % 2 === 1 ? <strong key={j}>{part}</strong> : part
+                )}
               </div>
             </motion.div>
           ))}
