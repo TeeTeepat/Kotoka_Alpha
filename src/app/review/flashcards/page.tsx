@@ -29,6 +29,7 @@ function nextIntervalDays(word: WordData | undefined, quality: Quality): number 
 }
 
 function Flashcard({ word, colorPalette }: { word: WordData; colorPalette: string }) {
+  const { t } = useLocale();
   const [flipped, setFlipped] = useState(false);
   useEffect(() => setFlipped(false), [word.id]);
 
@@ -66,6 +67,7 @@ function Flashcard({ word, colorPalette }: { word: WordData; colorPalette: strin
 }
 
 function StudySession({ deck, onExit }: { deck: DeckWithWords; onExit: () => void }) {
+  const { t } = useLocale();
   const sorted = [...deck.words].sort((a, b) =>
     (Date.now() - new Date(b.nextReviewAt).getTime()) - (Date.now() - new Date(a.nextReviewAt).getTime())
   );
