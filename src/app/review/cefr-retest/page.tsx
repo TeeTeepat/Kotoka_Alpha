@@ -34,11 +34,13 @@ export default function CEFRRetestPage() {
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [confettiTrigger, setConfettiTrigger] = useState(false);
   const [userStreak, setUserStreak] = useState(0);
+  const [retestDone, setRetestDone] = useState(false);
   const directionRef = useRef(1);
 
   useEffect(() => {
     async function checkAccess() {
       const alreadyDone = localStorage.getItem("kotoka_cefr_retest_done") === "true";
+      setRetestDone(alreadyDone);
       if (alreadyDone) { setViewState("locked"); return; }
 
       try {
@@ -141,12 +143,12 @@ export default function CEFRRetestPage() {
           </div>
           <div>
             <h2 className="font-heading font-extrabold text-xl text-dark mb-2">
-              {localStorage.getItem("kotoka_cefr_retest_done") === "true"
+              {retestDone
                 ? "Retest Complete"
                 : "Keep the Streak!"}
             </h2>
             <p className="font-body text-sm text-gray-500 leading-relaxed">
-              {localStorage.getItem("kotoka_cefr_retest_done") === "true"
+              {retestDone
                 ? "You've already completed your retest. Your updated CEFR level has been saved."
                 : `This retest unlocks after a 3-day learning streak. You're at ${userStreak} day${userStreak !== 1 ? "s" : ""} — keep going!`}
             </p>
