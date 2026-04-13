@@ -21,6 +21,7 @@ model Deck {
   locationLat  Float?
   locationLng  Float?
   locationName String?
+  imageBase64  String?   @db.Text
   words        Word[]
   user         User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
 }
@@ -53,7 +54,21 @@ model User {
   coins              Int         @default(150)
   streakFreezeActive Boolean     @default(false)
   targetLanguage     String?
-  learningLanguage   String?
+  learningLanguage        String?
+  initialLearningLanguage String?
+  cefrLevel          String?
+  lastSessionNodeId  String?
+  lastSessionSkill   String?
+  lastSessionProgress Int?
+  lastSessionStartedAt DateTime?
+  completedNodes     Int         @default(0)
+  timezone           String?     @default("UTC")
+  lastStreakDate     String?
+  lastHeartAt        DateTime?
+  isOnboarded        Boolean     @default(false)
+  age                Int?
+  job                String?
+  salary             String?
   createdAt          DateTime    @default(now())
   gachaItems         GachaItem[]
   accounts           Account[]
@@ -104,4 +119,70 @@ model GachaItem {
   emoji    String
   pulledAt DateTime @default(now())
   user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model ConversationSession {
+  id             String    @id @default(cuid())
+  userId         String
+  scenarioType   String
+  targetWords    String[]
+  exchanges      Json      @default("[]")
+  wordsCompleted String[]
+  coinsAwarded   Int       @default(0)
+  accuracy       Float     @default(0)
+  durationSec    Int       @default(0)
+  correctChoices Int       @default(0)
+  totalChoices   Int       @default(0)
+  completedAt    DateTime?
+  createdAt      DateTime  @default(now())
+}
+
+model WeeklyStory {
+  id           String   @id @default(cuid())
+  userId       String
+  weekNumber   Int
+  storyText    String   @db.Text
+  wordsUsed    String[]
+  reflectionQ  String
+  language     String   @default("en")
+  createdAt    DateTime @default(now())
+
+  @@unique([userId, weekNumber])
+}
+
+model LeaderboardEntry {
+  id            String   @id @default(cuid())
+  userId        String
+  cefrLevel     String
+  weekNumber    Int
+  wordsMastered Int      @default(0)
+  rank          Int?
+  coinsAwarded  Int      @default(0)
+  createdAt     DateTime @default(now())
+
+  @@unique([userId, weekNumber, cefrLevel])
+}
+
+model SharedDeck {
+  id           String   @id @default(cuid())
+  creatorId    String
+  words        String[]
+  locationLat  Float
+  locationLng  Float
+  locationName String
+  isActive     Boolean  @default(true)
+  publishedAt  DateTime @default(now())
+  expiresAt    DateTime
+}
+
+model UserConsent {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  photos          Boolean  @default(true)
+  gps             Boolean  @default(true)
+  sessionBehavior Boolean  @default(true)
+  voiceRecording  Boolean  @default(false)
+  consentedAt     DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  ipAddress       String?
 }

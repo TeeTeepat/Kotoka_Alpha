@@ -3,14 +3,18 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Camera, Sparkles, BookOpen, Flame } from "lucide-react";
-import Image from "next/image";
+import { Camera, Sparkles, BookOpen, Flame, ArrowRight } from "lucide-react";
 import Link from "next/link";
+import KokoMascot from "@/components/KokoMascot";
+import ForgettingCurveWidget from "@/components/dashboard/ForgettingCurveWidget";
 import type { DeckWithWords } from "@/types";
+import { useLocale } from "@/lib/i18n";
 
 export default function HomePage() {
   const router = useRouter();
+  const { t } = useLocale();
   const [stats, setStats] = useState({ hearts: 5, streak: 0, coins: 0, wordsLearned: 0 });
+  const [showRetestBanner, setShowRetestBanner] = useState(false);
   const [decks, setDecks] = useState<DeckWithWords[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -22,11 +26,14 @@ export default function HomePage() {
         const userRes = await fetch("/api/user");
         if (userRes.ok) {
           const user = await userRes.json();
-          if (!user.targetLanguage || !user.learningLanguage) {
+          if (!user.isOnboarded || !user.targetLanguage || !user.learningLanguage) {
             router.push("/onboarding/language");
             return;
           }
-          setStats(s => ({ ...s, hearts: user.hearts, streak: user.streak, coins: user.coins }));
+setStats(s => ({ ...s, hearts: user.hearts, streak: user.streak, coins: user.coins }));
+          if ((user.streak ?? 0) >= 3 && localStorage.getItem("kotoka_cefr_retest_done") !== "true") {
+            setShowRetestBanner(true);
+          }
         }
 
         const deckRes = await fetch("/api/decks");
@@ -60,21 +67,15 @@ export default function HomePage() {
         <motion.div
           animate={{ y: [0, -6, 0] }}
           transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-          className="relative w-32 h-32 mx-auto mb-4"
+          className="w-32 h-32 mx-auto mb-4"
         >
-          <Image
-            src="/koko-sit-removebg.png"
-            alt="Koko"
-            fill
-            className="object-contain"
-            priority
-          />
+          <KokoMascot state="greeting" className="w-32 h-32" priority />
         </motion.div>
         <h1 className="font-heading font-extrabold text-2xl text-dark mb-1">
-          Welcome back!
+          {t.homeGreeting}!
         </h1>
         <p className="font-body text-sm text-gray-500">
-          What will you learn today?
+          {t.homeSubtitle}
         </p>
       </motion.div>
 
@@ -91,7 +92,7 @@ export default function HomePage() {
             className="btn-aqua w-full py-4 px-6 text-base animate-pulse-glow"
           >
             <Camera className="w-5 h-5" />
-            Snap & Learn
+            {t.homeStartSnap}
             <Sparkles className="w-4 h-4" />
           </motion.div>
         </Link>
@@ -112,7 +113,7 @@ export default function HomePage() {
             <p className="font-heading font-extrabold text-xl text-dark">
               {stats.wordsLearned}
             </p>
-            <p className="font-body text-[11px] text-gray-400">Mastered Words</p>
+            <p className="font-body text-[11px] text-gray-400">{t.homeWordsLearned}</p>
           </div>
         </div>
         <div className="card-base p-4 flex items-center gap-3">
@@ -123,10 +124,40 @@ export default function HomePage() {
             <p className="font-heading font-extrabold text-xl text-dark">
               {stats.streak}
             </p>
-            <p className="font-body text-[11px] text-gray-400">Day Streak</p>
+            <p className="font-body text-[11px] text-gray-400">{t.homeStreakDays}</p>
           </div>
         </div>
       </motion.div>
+
+      {/* CEFR Retest Banner (streak >= 3, beta) */}
+      {showRetestBanner && (
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.35, duration: 0.4 }}
+        >
+          <Link href="/review/cefr-retest">
+            <motion.div
+              whileHover={{ scale: 1.02, y: -2 }}
+              whileTap={{ scale: 0.97 }}
+              className="flex items-center gap-4 p-4 rounded-2xl bg-gradient-to-r from-orange-50 to-amber-50 border-2 border-orange-200 shadow-sm cursor-pointer"
+            >
+              <div className="w-11 h-11 bg-orange-100 rounded-xl flex items-center justify-center flex-shrink-0 text-xl">
+                🔥
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-heading font-extrabold text-sm text-orange-700">
+                  3-Day Streak Unlocked!
+                </p>
+                <p className="font-body text-xs text-orange-500 truncate">
+                  Take a quick CEFR retest to update your level
+                </p>
+              </div>
+              <ArrowRight className="w-4 h-4 text-orange-400 flex-shrink-0" />
+            </motion.div>
+          </Link>
+        </motion.div>
+      )}
 
       {/* Recent Decks */}
       <motion.div
@@ -196,6 +227,32 @@ export default function HomePage() {
           </div>
         )}
       </motion.div>
+      {/* Weekly Story Card */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.5, duration: 0.5 }}
+      >
+        <Link href="/story">
+          <motion.div
+            whileHover={{ scale: 1.02, x: 4 }}
+            whileTap={{ scale: 0.98 }}
+            className="card-base p-4 flex items-center gap-3 bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200"
+          >
+            <div className="w-10 h-10 rounded-xl bg-purple-100 flex items-center justify-center">
+              <BookOpen className="w-5 h-5 text-purple-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-heading font-extrabold text-sm text-dark">Weekly Story</p>
+              <p className="font-body text-[11px] text-gray-400">Read & learn new words</p>
+            </div>
+            <ArrowRight className="w-4 h-4 text-gray-400" />
+          </motion.div>
+        </Link>
+      </motion.div>
+
+      {/* Forgetting Curve Widget */}
+      <ForgettingCurveWidget decks={decks} loading={loading} />
     </div>
   );
 }

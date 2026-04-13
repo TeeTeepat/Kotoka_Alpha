@@ -6,6 +6,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, Coins, BookOpen } from "lucide-react";
 import Link from "next/link";
 import type { UserData, GachaItemData, DeckWithWords } from "@/types";
+import { useSoundPlayer } from "@/components/hooks/useSoundPlayer";
+import { useLocale } from "@/lib/i18n";
 
 const RARITY_CFG: Record<string, { pill: string; border: string; glow: string }> = {
   legendary: {
@@ -99,9 +101,11 @@ function GachaMachine({
   const [pulling, setPulling] = useState(false);
   const [result, setResult] = useState<DrawResult | null>(null);
   const canDraw = user.coins >= price;
+  const { play } = useSoundPlayer();
 
   async function handleDraw() {
     if (pulling || !canDraw) return;
+    play("click");
     setPulling(true);
     setResult(null);
     try {
@@ -109,6 +113,7 @@ function GachaMachine({
       // Vocab pack needs extra time for Gemini
       await new Promise((r) => setTimeout(r, machineType === "vocab_pack" ? 500 : 400));
       setResult(data);
+      play("fanfare");
     } finally {
       setPulling(false);
     }
@@ -233,6 +238,7 @@ function GachaMachine({
                 >
                   Draw Again
                 </motion.button>
+                {/* play("click") is already fired inside handleDraw */}
                 {result.deck ? (
                   <Link
                     href={`/review?deck=${result.deck.id}`}
@@ -261,6 +267,7 @@ function GachaMachine({
 export default function GachaPage() {
   const router = useRouter();
   const [user, setUser] = useState<UserData | null>(null);
+  const { t } = useLocale();
 
   useEffect(() => {
     fetch("/api/user")
@@ -281,6 +288,8 @@ export default function GachaPage() {
     return { item: data.item, deck: data.deck };
   }
 
+  const { play: playPage } = useSoundPlayer();
+
   if (!user) return (
     <div className="flex items-center justify-center py-20">
       <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
@@ -292,10 +301,10 @@ export default function GachaPage() {
     <div className="py-4 space-y-5">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <button onClick={() => router.back()}
+        <button onClick={() => { playPage("click"); router.back(); }}
           className="flex items-center gap-1 text-gray-500 hover:text-dark transition-colors">
           <ChevronLeft className="w-5 h-5" />
-          <span className="font-body text-sm">Back</span>
+          <span className="font-body text-sm">{t.back}</span>
         </button>
         <motion.div
           key={user.coins}
@@ -309,8 +318,8 @@ export default function GachaPage() {
       </div>
 
       <div>
-        <h1 className="font-heading font-extrabold text-xl text-dark">Gacha</h1>
-        <p className="font-body text-sm text-gray-500">Earn coins by completing reviews</p>
+        <h1 className="font-heading font-extrabold text-xl text-dark">{t.gachaTitle}</h1>
+        <p className="font-body text-sm text-gray-500">{t.gachaSubtitle}</p>
       </div>
 
       {/* Machine 1 — Luggage Draw */}

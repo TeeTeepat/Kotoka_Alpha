@@ -5,17 +5,21 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { Home, Camera, Layers, ShoppingBag, UserCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-const tabs = [
-  { href: "/", icon: Home, label: "Home" },
-  { href: "/snap", icon: Camera, label: "Snap" },
-  { href: "/review", icon: Layers, label: "Review" },
-  { href: "/shop", icon: ShoppingBag, label: "Shop" },
-  { href: "/profile", icon: UserCircle2, label: "Profile" },
-];
+import { useSoundPlayer } from "@/components/hooks/useSoundPlayer";
+import { useLocale } from "@/lib/i18n";
 
 export default function BottomNav() {
   const pathname = usePathname();
+  const { play } = useSoundPlayer();
+  const { t } = useLocale();
+
+  const tabs = [
+    { href: "/", icon: Home, label: t.navHome },
+    { href: "/snap", icon: Camera, label: t.navSnap },
+    { href: "/review", icon: Layers, label: t.navReview },
+    { href: "/shop", icon: ShoppingBag, label: t.shopTitle },
+    { href: "/profile", icon: UserCircle2, label: t.profileTitle },
+  ];
 
   return (
     <motion.nav
@@ -33,7 +37,7 @@ export default function BottomNav() {
           const Icon = tab.icon;
 
           return (
-            <Link key={tab.href} href={tab.href} className="relative">
+            <Link key={tab.href} href={tab.href} className="relative" onClick={() => play("click")}>
               <motion.div
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}

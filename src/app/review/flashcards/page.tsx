@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, BookOpen, Layers, Clock } from "lucide-react";
+import { useLocale } from "@/lib/i18n";
 import type { DeckWithWords, WordData } from "@/types";
 
 type Quality = 1 | 2 | 4 | 5;
@@ -45,12 +46,12 @@ function Flashcard({ word, colorPalette }: { word: WordData; colorPalette: strin
           <div className="w-10 h-1.5 rounded-full mb-2" style={{ backgroundColor: colorPalette }} />
           <h2 className="font-heading font-extrabold text-3xl text-dark">{word.word}</h2>
           <p className="font-body text-sm text-gray-400">{word.phonetic}</p>
-          <p className="font-body text-xs text-gray-300 mt-2">Tap to reveal</p>
+          <p className="font-body text-xs text-gray-300 mt-2">{t.flashcardTap}</p>
         </div>
         <div style={{ backfaceVisibility: "hidden", transform: "rotateY(180deg)" }}
           className="absolute inset-0 rounded-card border-[1.5px] shadow-card flex flex-col justify-between p-5">
           <div>
-            <p className="font-body text-xs text-gray-400 mb-1">Translation</p>
+            <p className="font-body text-xs text-gray-400 mb-1">{t.flashcardTranslation}</p>
             <p className="font-heading font-extrabold text-xl text-dark">{word.translation}</p>
           </div>
           <div className="bg-background rounded-xl p-3 flex items-start gap-2">
@@ -166,7 +167,7 @@ function StudySession({ deck, onExit }: { deck: DeckWithWords; onExit: () => voi
             className="card-base p-6 flex flex-col items-center gap-4 text-center">
             <motion.div animate={{ rotate: [0, -10, 10, -10, 10, 0], scale: [1, 1.15, 1] }}
               transition={{ duration: 0.6 }} className="text-5xl">🎉</motion.div>
-            <h2 className="font-heading font-extrabold text-xl text-dark">Session Complete!</h2>
+            <h2 className="font-heading font-extrabold text-xl text-dark">{t.sessionComplete}</h2>
             <div className="flex gap-4 w-full justify-center flex-wrap">
               {[
                 { label: "Again", count: ratings.again, color: "text-red-500" },
@@ -185,7 +186,7 @@ function StudySession({ deck, onExit }: { deck: DeckWithWords; onExit: () => voi
             </div>
             <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
               onClick={onExit} className="btn-aqua w-full py-3.5 mt-2">
-              Back to Decks
+              {t.back}
             </motion.button>
           </motion.div>
         )}
@@ -222,6 +223,7 @@ function DeckItem({ deck, onSelect, index }: { deck: DeckWithWords; onSelect: ()
 }
 
 export default function FlashcardsPage() {
+  const { t } = useLocale();
   const router = useRouter();
   const [decks, setDecks] = useState<DeckWithWords[]>([]);
   const [loading, setLoading] = useState(true);
@@ -247,7 +249,7 @@ export default function FlashcardsPage() {
           <ChevronLeft className="w-4 h-4 text-dark" />
         </motion.button>
         <div>
-          <h1 className="font-heading font-extrabold text-xl text-dark">Flashcards</h1>
+          <h1 className="font-heading font-extrabold text-xl text-dark">{t.flashcardTitle}</h1>
           <p className="font-body text-sm text-gray-500">
             {decks.length} deck{decks.length !== 1 ? "s" : ""}
             {totalDue > 0 && <span className="text-amber-500 ml-1">· {totalDue} due</span>}

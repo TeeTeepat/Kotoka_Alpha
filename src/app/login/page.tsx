@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
@@ -8,6 +8,8 @@ import Image from "next/image";
 import { motion } from "framer-motion";
 import { Mail, Lock, Eye, EyeOff, AlertCircle, ShieldAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
+import PDPAConsentModal from "@/components/pdpa/PDPAConsentModal";
+import { useLocale } from "@/lib/i18n";
 
 function GoogleIcon() {
   return (
@@ -63,6 +65,15 @@ function LoginForm() {
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState("");
+  const { t } = useLocale();
+  const [pdpaAccepted, setPdpaAccepted] = useState(false);
+  const [showPdpa, setShowPdpa] = useState(false);
+
+  useEffect(() => {
+    const accepted = localStorage.getItem("kotoka_pdpa_accepted") === "true";
+    setPdpaAccepted(accepted);
+    if (!accepted) setShowPdpa(true);
+  }, []);
 
   const callbackUrl = searchParams.get("callbackUrl") ?? "/";
 
@@ -82,12 +93,24 @@ function LoginForm() {
   };
 
   const handleGoogle = async () => {
+    if (!pdpaAccepted) { setShowPdpa(true); return; }
     setGoogleLoading(true);
     await signIn("google", { callbackUrl });
   };
 
+  const handlePdpaAccept = () => {
+    localStorage.setItem("kotoka_pdpa_accepted", "true");
+    setPdpaAccepted(true);
+    setShowPdpa(false);
+  };
+
+  const handlePdpaDecline = () => {
+    setShowPdpa(false);
+  };
+
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4 py-12">
+      {showPdpa && <PDPAConsentModal onAccept={handlePdpaAccept} onDecline={handlePdpaDecline} />}
       <motion.div
         initial={{ opacity: 0, y: 24 }}
         animate={{ opacity: 1, y: 0 }}
@@ -98,8 +121,8 @@ function LoginForm() {
         <div className="flex flex-col items-center gap-3">
           <Image src="/logo.png" alt="Kotoka" width={56} height={56} className="rounded-2xl shadow-card" />
           <div className="text-center">
-            <h1 className="font-heading font-extrabold text-2xl text-dark">Welcome back 👋</h1>
-            <p className="font-body text-sm text-gray-500 mt-1">Sign in to continue your learning journey</p>
+            <h1 className="font-heading font-extrabold text-2xl text-dark">{t.loginTitle} 👋</h1>
+            <p className="font-body text-sm text-gray-500 mt-1">{t.loginSubtitle}</p>
           </div>
         </div>
 
@@ -119,13 +142,13 @@ function LoginForm() {
         <motion.button
           whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
           onClick={handleGoogle}
-          disabled={googleLoading}
-          className="w-full flex items-center justify-center gap-3 py-3.5 rounded-2xl bg-white border-[1.5px] border-card-border shadow-card font-heading font-bold text-sm text-dark hover:border-gray-300 transition-colors disabled:opacity-60"
+          disabled={googleLoading || !pdpaAccepted}
+          className="w-full flex items-center justify-center gap-3 py-3.5 rounded-2xl bg-white border-[1.5px] border-card-border shadow-card font-heading font-bold text-sm text-dark hover:border-gray-300 transition-colors disabled:opacity-40"
         >
           {googleLoading ? (
             <div className="w-4 h-4 border-2 border-gray-300 border-t-primary rounded-full animate-spin" />
           ) : <GoogleIcon />}
-          Continue with Google
+          {t.loginWithGoogle}
         </motion.button>
 
         {/* Divider */}
@@ -167,13 +190,13 @@ function LoginForm() {
           >
             {loading ? (
               <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-            ) : "Sign In"}
+            ) : t.loginSignIn}
           </motion.button>
         </form>
 
         <p className="text-center font-body text-sm text-gray-500">
-          Don&apos;t have an account?{" "}
-          <Link href="/signup" className="font-bold text-primary hover:underline">Sign up</Link>
+          {t.loginNoAccount}{" "}
+          <Link href="/signup" className="font-bold text-primary hover:underline">{t.loginSignUp}</Link>
         </p>
       </motion.div>
     </div>

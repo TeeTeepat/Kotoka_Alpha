@@ -23,11 +23,15 @@ export const authConfig: NextAuthConfig = {
       const isLoggedIn = !!auth?.user;
       const path = nextUrl.pathname;
 
+      // Allow auth pages
       const isAuthPage = path === "/login" || path === "/signup";
-
-      // Always allow auth pages when not logged in
       if (isAuthPage) {
         if (isLoggedIn) return Response.redirect(new URL("/", nextUrl));
+        return true;
+      }
+
+      // For API routes, let individual routes handle auth
+      if (path.startsWith("/api/")) {
         return true;
       }
 

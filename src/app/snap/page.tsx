@@ -2,12 +2,13 @@
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Camera, ImageIcon, Scan, ArrowRight, X, RotateCcw, Loader2 } from "lucide-react";
+import { Camera, ImageIcon, Scan, X, RotateCcw, Loader2 } from "lucide-react";
 import Image from "next/image";
+import KokoMascot from "@/components/KokoMascot";
 import { useRouter } from "next/navigation";
-import VocabCard from "@/components/VocabCard";
-import type { SnapResponse } from "@/types";
-import { cn } from "@/lib/utils";
+import WordPickDeck from "@/components/vocab/WordPickDeck";
+import type { SnapResponse, VocabWord } from "@/types";
+import { useLocale } from "@/lib/i18n";
 
 export default function SnapPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -26,6 +27,7 @@ export default function SnapPage() {
 
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
+  const { t } = useLocale();
 
   // Attach stream to video element whenever either changes
   useEffect(() => {
@@ -118,11 +120,43 @@ export default function SnapPage() {
     }
   }, [imageBase64]);
 
-  const handleAddSensoryTag = useCallback(() => {
+  // Auto-analyze as soon as an image is captured or uploaded
+  useEffect(() => {
+    if (imageBase64 && !result && !analyzing) {
+      handleAnalyze();
+    }
+  // handleAnalyze is stable (useCallback with imageBase64 dep); result/analyzing prevent re-fire
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [imageBase64]);
+
+  // FIX 6: compress full image to <50KB thumbnail before storing
+  const compressToThumbnail = useCallback((base64Full: string): Promise<string> => {
+    return new Promise((resolve) => {
+      const img = document.createElement("img");
+      img.onload = () => {
+        const maxW = 400;
+        const scale = Math.min(1, maxW / img.width);
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        canvas.getContext("2d")!.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL("image/jpeg", 0.7).split(",")[1]);
+      };
+      img.onerror = () => resolve(""); // fallback: no thumbnail
+      img.src = `data:image/jpeg;base64,${base64Full}`;
+    });
+  }, []);
+
+  const handleDeckCreate = useCallback(async (kept: VocabWord[]) => {
     if (!result) return;
-    sessionStorage.setItem("kotoka-snap-result", JSON.stringify(result));
+    const narrowed: SnapResponse = { scene: result.scene, vocabulary: kept };
+    if (imageBase64) {
+      const thumbnail = await compressToThumbnail(imageBase64);
+      if (thumbnail) sessionStorage.setItem("kotoka-snap-thumbnail", thumbnail);
+    }
+    sessionStorage.setItem("kotoka-snap-result", JSON.stringify(narrowed));
     router.push("/tag");
-  }, [result, router]);
+  }, [result, imageBase64, compressToThumbnail, router]);
 
   const showCamera = !imagePreview && !cameraError;
 
@@ -193,9 +227,9 @@ export default function SnapPage() {
       {/* ── Page content (always rendered, visible when no camera) ── */}
       <div className="py-4 space-y-5">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-          <h1 className="font-heading font-extrabold text-xl text-dark mb-1">Snap & Learn</h1>
+          <h1 className="font-heading font-extrabold text-xl text-dark mb-1">{t.snapTitle}</h1>
           <p className="font-body text-sm text-gray-500">
-            Point your camera at any scene to discover vocabulary
+            {t.snapSubtitle}
           </p>
         </motion.div>
 
@@ -206,11 +240,11 @@ export default function SnapPage() {
               <Camera className="w-9 h-9 text-gray-400" />
             </div>
             <p className="font-body text-sm text-gray-500 text-center">
-              Camera unavailable. Upload a photo instead.
+              {t.snapCameraError}
             </p>
             <motion.label htmlFor="gallery-input" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
               className="btn-aqua cursor-pointer w-full py-3">
-              <ImageIcon className="w-4 h-4" /> Choose from Gallery
+              <ImageIcon className="w-4 h-4" /> {t.snapGallery}
             </motion.label>
           </div>
         )}
@@ -237,22 +271,15 @@ export default function SnapPage() {
                 </motion.button>
               </div>
 
-              {!result && (
-                <div className="p-4">
-                  <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
-                    onClick={handleAnalyze} disabled={analyzing}
-                    className={cn("btn-gold w-full py-3.5", analyzing && "opacity-60 cursor-not-allowed")}>
-                    {analyzing ? (
-                      <>
-                        <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}>
-                          <Scan className="w-4 h-4" />
-                        </motion.div>
-                        Analyzing Scene…
-                      </>
-                    ) : (
-                      <><Scan className="w-4 h-4" /> Analyze Scene</>
-                    )}
-                  </motion.button>
+              {!result && analyzing && (
+                <div className="p-4 flex flex-col items-center gap-2">
+                  <KokoMascot state="thinking" className="w-20 h-20" />
+                  <div className="flex items-center gap-2 text-primary font-body text-sm font-semibold">
+                    <motion.div animate={{ rotate: 360 }} transition={{ duration: 1, repeat: Infinity, ease: "linear" }}>
+                      <Scan className="w-4 h-4" />
+                    </motion.div>
+                    Analyzing Scene…
+                  </div>
                 </div>
               )}
             </motion.div>
@@ -269,28 +296,20 @@ export default function SnapPage() {
           )}
         </AnimatePresence>
 
-        {/* Results */}
+        {/* Results — card-swipe pick-5 */}
         <AnimatePresence>
           {result && (
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
               <div className="flex items-center gap-2">
-                <h2 className="font-heading font-extrabold text-lg text-dark">Vocabulary Found</h2>
+                <KokoMascot state="excited" className="w-8 h-8" />
+                <h2 className="font-heading font-extrabold text-lg text-dark">{t.snapPickWords}</h2>
                 <span className="text-xs font-body font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-full">
-                  {result.vocabulary.length} words
+                  {result.vocabulary.length} {t.snapFound}
                 </span>
               </div>
-              <p className="font-body text-xs text-gray-400">Scene: {result.scene}</p>
+              <p className="font-body text-xs text-gray-400">{t.snapScene}: {result.scene}</p>
 
-              <div className="space-y-3">
-                {result.vocabulary.map((word, i) => (
-                  <VocabCard key={word.word + i} word={word} index={i} />
-                ))}
-              </div>
-
-              <motion.button whileHover={{ scale: 1.02, y: -1 }} whileTap={{ scale: 0.97 }}
-                onClick={handleAddSensoryTag} className="btn-aqua w-full py-3.5">
-                Add Sensory Tag <ArrowRight className="w-4 h-4" />
-              </motion.button>
+              <WordPickDeck words={result.vocabulary} onComplete={handleDeckCreate} />
             </motion.div>
           )}
         </AnimatePresence>

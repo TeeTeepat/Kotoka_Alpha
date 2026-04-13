@@ -1,101 +1,161 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Layers, MessageSquare, Mic, Headphones } from "lucide-react";
-import Image from "next/image";
-
-const MODES = [
-  {
-    href: "/review/flashcards",
-    icon: Layers,
-    title: "Flashcards",
-    subtitle: "Spaced Repetition",
-    description: "SM-2 algorithm adapts to your memory",
-    color: "#1ad3e2",
-    bg: "from-cyan-50 to-teal-50",
-    border: "border-cyan-200",
-  },
-  {
-    href: "/review/read-write",
-    icon: MessageSquare,
-    title: "Read & Write",
-    subtitle: "AI Conversation",
-    description: "Chat with Koko in your target language",
-    color: "#8b5cf6",
-    bg: "from-violet-50 to-purple-50",
-    border: "border-violet-200",
-  },
-  {
-    href: "/review/pronunciation",
-    icon: Mic,
-    title: "Pronunciation",
-    subtitle: "Syllable Analysis",
-    description: "Heatmap feedback on every syllable",
-    color: "#f59e0b",
-    bg: "from-amber-50 to-orange-50",
-    border: "border-amber-200",
-  },
-  {
-    href: "/review/dictation",
-    icon: Headphones,
-    title: "Dictation",
-    subtitle: "Listen & Type",
-    description: "Hear the word, spell it correctly",
-    color: "#10b981",
-    bg: "from-emerald-50 to-green-50",
-    border: "border-emerald-200",
-  },
-];
+import { Trophy, MapPin, BookOpen, MessageCircle } from "lucide-react";
+import type { StudyNode } from "@/types";
+import { useSoundPlayer } from "@/components/hooks/useSoundPlayer";
+import WindingPath from "@/components/path/WindingPath";
+import EmptyPathState from "@/components/path/EmptyPathState";
+import { loadSessionFromStorage } from "@/lib/session/clientStateManager";
+import { useLocale } from "@/lib/i18n";
 
 export default function ReviewPage() {
   const router = useRouter();
+  const { play } = useSoundPlayer();
+  const { t } = useLocale();
+  const [nodes, setNodes] = useState<StudyNode[]>([]);
+  const [totalDue, setTotalDue] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [lastStudiedAt, setLastStudiedAt] = useState<string | null>(null);
+  const [showResume, setShowResume] = useState(false);
+
+  useEffect(() => {
+    async function load() {
+      try {
+        // Check for existing session
+        const savedSession = loadSessionFromStorage();
+        if (savedSession) setShowResume(true);
+
+        // Fetch path
+        const pathRes = await fetch("/api/study/path");
+        if (pathRes.ok) {
+          const data = await pathRes.json();
+          setNodes(data.nodes || []);
+          setTotalDue(data.totalDue || 0);
+        }
+
+        // Fetch stats
+        const statsRes = await fetch("/api/user/stats");
+        if (statsRes.ok) {
+          const stats = await statsRes.json();
+          setLastStudiedAt(stats.lastStudiedAt);
+        }
+      } catch (err) {
+        console.error("[ReviewPage] Load failed:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
+  }, []);
+
+  const handleNodeClick = (nodeId: string) => {
+    play("click");
+    router.push(`/review/session/${nodeId}`);
+  };
+
+  const handleResume = () => {
+    play("click");
+    const saved = loadSessionFromStorage();
+    if (saved) {
+      router.push(`/review/session/${saved.nodeId}`);
+    }
+  };
+
+  // Find first non-locked, non-completed node as active
+  const activeNodeId = nodes.find(n => !n.isLocked && !n.isCompleted)?.id;
 
   return (
     <div className="py-4 space-y-5">
+      {/* Header */}
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
-        <h1 className="font-heading font-extrabold text-xl text-dark">Practice</h1>
-        <p className="font-body text-sm text-gray-500">Choose how you want to study</p>
+        <h1 className="font-heading font-extrabold text-xl text-dark">{t.reviewTitle}</h1>
+        <p className="font-body text-sm text-gray-500">
+          {totalDue > 0 ? `${totalDue} ${t.reviewWordsReady}` : t.reviewAllCaughtUp}
+        </p>
       </motion.div>
 
-      <div className="grid grid-cols-2 gap-3">
-        {MODES.map((mode, i) => {
-          const Icon = mode.icon;
-          return (
-            <motion.button
-              key={mode.href}
-              initial={{ opacity: 0, y: 24 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.08, duration: 0.35 }}
-              whileHover={{ scale: 1.03, y: -2 }}
-              whileTap={{ scale: 0.97 }}
-              onClick={() => router.push(mode.href)}
-              className={`card-base p-4 text-left flex flex-col gap-3 bg-gradient-to-br ${mode.bg} border ${mode.border} hover:shadow-card-hover transition-all`}
-            >
-              <div
-                className="w-10 h-10 rounded-xl flex items-center justify-center"
-                style={{ backgroundColor: `${mode.color}20` }}
+      {/* Resume session banner */}
+      {showResume && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="card-base p-4 bg-gradient-to-r from-primary/10 to-cyan-50 border-primary/20"
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="font-heading font-extrabold text-sm text-dark">Resume your session?</p>
+              <p className="font-body text-xs text-gray-400">You have an unfinished session</p>
+            </div>
+            <div className="flex gap-2">
+              <motion.button
+                whileTap={{ scale: 0.95 }}
+                onClick={() => { play("click"); setShowResume(false); }}
+                className="px-3 py-1.5 rounded-xl text-xs font-heading font-bold text-gray-500 bg-gray-100"
               >
-                <Icon className="w-5 h-5" style={{ color: mode.color }} />
-              </div>
-              <div>
-                <p className="font-heading font-extrabold text-sm text-dark leading-tight">{mode.title}</p>
-                <p className="font-body text-[10px] font-medium mt-0.5" style={{ color: mode.color }}>
-                  {mode.subtitle}
-                </p>
-                <p className="font-body text-[10px] text-gray-400 mt-1 leading-tight">{mode.description}</p>
-              </div>
-            </motion.button>
-          );
-        })}
+                Dismiss
+              </motion.button>
+              <motion.button
+                whileTap={{ scale: 0.95 }}
+                onClick={handleResume}
+                className="btn-aqua px-4 py-1.5 text-xs"
+              >
+                Resume
+              </motion.button>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Quick access cards */}
+      <div className="grid grid-cols-2 gap-3">
+        {[
+          { href: "/review/conversation", icon: MessageCircle, label: t.reviewConversation, desc: t.conversationInstruction, color: "bg-blue-50 text-blue-600" },
+          { href: "/story", icon: BookOpen, label: t.storyTitle, desc: t.storySubtitle, color: "bg-purple-50 text-purple-600" },
+          { href: "/community/leaderboard", icon: Trophy, label: t.leaderboardTitle, desc: t.leaderboardSubtitle, color: "bg-amber-50 text-amber-600" },
+          { href: "/community/nearby", icon: MapPin, label: t.nearbyTitle, desc: t.nearbySubtitle, color: "bg-emerald-50 text-emerald-600" },
+        ].map((item, i) => (
+          <motion.button
+            key={item.href}
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.05 * i }}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.97 }}
+            onClick={() => router.push(item.href)}
+            className="card-base p-3.5 text-left flex items-center gap-3"
+          >
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${item.color.split(" ")[0]}`}>
+              <item.icon className={`w-5 h-5 ${item.color.split(" ")[1]}`} />
+            </div>
+            <div className="min-w-0">
+              <p className="font-heading font-bold text-sm text-dark truncate">{item.label}</p>
+              <p className="font-body text-xs text-gray-400 truncate">{item.desc}</p>
+            </div>
+          </motion.button>
+        ))}
       </div>
 
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1, y: [0, -6, 0] }}
-        transition={{ opacity: { delay: 0.4, duration: 0.5 }, y: { duration: 3, repeat: Infinity, ease: "easeInOut" } }}
-        className="flex justify-center mt-6">
-        <Image src="/koko-stand-removebg.png" alt="Koko" width={160} height={160}
-          className="object-contain" />
-      </motion.div>
+      {/* Content */}
+      {loading ? (
+        <div className="space-y-4 py-8">
+          {[1, 2, 3, 4, 5].map(i => (
+            <div key={i} className="flex justify-center">
+              <div className="w-14 h-14 rounded-full bg-gray-100 animate-pulse" style={{ marginLeft: `${(i % 3 - 1) * 40}px` }} />
+            </div>
+          ))}
+        </div>
+      ) : nodes.length === 0 ? (
+        <EmptyPathState lastStudiedAt={lastStudiedAt} />
+      ) : (
+        <WindingPath
+          nodes={nodes}
+          activeNodeId={activeNodeId}
+          onNodeClick={handleNodeClick}
+        />
+      )}
     </div>
   );
 }

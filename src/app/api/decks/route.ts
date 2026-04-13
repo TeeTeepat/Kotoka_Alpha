@@ -1,10 +1,11 @@
-import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
+import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { auth } from "@/auth";
 
 async function getUserId() {
-  const cookieStore = await cookies();
-  return cookieStore.get("kotoka-uid")?.value ?? null;
+  const session = await auth();
+  return session?.user?.id ?? null;
 }
 
 export async function GET() {
@@ -26,7 +27,11 @@ export async function POST(req: NextRequest) {
   try {
     const userId = await getUserId();
     const body = await req.json();
-    const { sceneDesc, emotionScore, atmosphere, ambientSound, note, colorPalette, vocabulary, locationLat, locationLng, locationName } = body;
+    const {
+      sceneDesc, emotionScore, atmosphere, ambientSound, note,
+      colorPalette, vocabulary, locationLat, locationLng, locationName,
+      imageBase64,
+    } = body;
 
     if (!sceneDesc || !vocabulary?.length) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
@@ -44,16 +49,19 @@ export async function POST(req: NextRequest) {
         locationLat: locationLat ?? null,
         locationLng: locationLng ?? null,
         locationName: locationName ?? null,
+        imageBase64: imageBase64 ?? null,
         words: {
+          // FIX 7: stagger nextReviewAt by 2 min per word so SM-2 doesn't batch them
           create: vocabulary.map((v: {
             word: string; translation: string; example: string;
             difficulty: string; phonetic: string;
-          }) => ({
+          }, i: number) => ({
             word: v.word,
             translation: v.translation,
             example: v.example,
             difficulty: v.difficulty,
             phonetic: v.phonetic,
+            nextReviewAt: new Date(Date.now() + i * 2 * 60 * 1000),
           })),
         },
       },

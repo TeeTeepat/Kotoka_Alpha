@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Coins } from "lucide-react";
 import type { UserData } from "@/types";
+import { useSoundPlayer } from "@/components/hooks/useSoundPlayer";
+import { useLocale } from "@/lib/i18n";
 
 const SHOP_ITEMS = [
   {
@@ -37,6 +39,8 @@ const GACHA_CARDS = [
 
 export default function ShopPage() {
   const router = useRouter();
+  const { play } = useSoundPlayer();
+  const { t } = useLocale();
   const [user, setUser] = useState<UserData | null>(null);
   const [buying, setBuying] = useState<string | null>(null);
 
@@ -48,6 +52,7 @@ export default function ShopPage() {
 
   async function handleBuy(item: string) {
     if (buying) return;
+    play("coin");
     setBuying(item);
     try {
       const res = await fetch("/api/shop/buy", {
@@ -69,7 +74,7 @@ export default function ShopPage() {
     return (
       <div className="flex items-center justify-center py-20">
         <div className="animate-pulse text-primary font-heading font-bold">
-          Loading...
+          {t.loading}
         </div>
       </div>
     );
@@ -79,7 +84,7 @@ export default function ShopPage() {
     <div className="py-4 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="font-heading font-extrabold text-xl text-dark">
-          🏪 The Shop
+          {t.shopTitle}
         </h1>
         <div className="flex items-center gap-1.5 bg-white rounded-pill px-3 py-1.5 border border-card-border shadow-card">
           <Coins className="w-4 h-4 text-gold" />
@@ -114,7 +119,7 @@ export default function ShopPage() {
                 disabled={user.coins < item.price || buying === item.id}
                 className="btn-aqua px-4 py-1.5 text-xs disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                {buying === item.id ? "..." : "Buy"}
+                {buying === item.id ? "..." : t.shopBuy}
               </button>
             </div>
           </motion.div>
@@ -123,7 +128,7 @@ export default function ShopPage() {
 
       <div className="pt-2">
         <h2 className="font-heading font-extrabold text-lg text-dark mb-3">
-          🎰 Gacha Draws
+          {t.gachaTitle}
         </h2>
         <div className="grid grid-cols-2 gap-3">
           {GACHA_CARDS.map((card, i) => (
@@ -133,7 +138,7 @@ export default function ShopPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.21 + i * 0.07 }}
               whileHover={{ scale: 1.02 }}
-              onClick={() => router.push("/gacha")}
+              onClick={() => { play("click"); router.push("/gacha"); }}
               className="card-base p-4 text-center cursor-pointer"
             >
               <div className="text-5xl mb-2">{card.emoji}</div>

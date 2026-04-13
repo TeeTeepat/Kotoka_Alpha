@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, Volume2, RotateCcw, Check, X } from "lucide-react";
 import type { DeckWithWords, WordData } from "@/types";
+import { useLocale } from "@/lib/i18n";
 
 function DeckSelector({ decks, onSelect }: { decks: DeckWithWords[]; onSelect: (d: DeckWithWords) => void }) {
   return (
@@ -165,6 +166,7 @@ function DictationSession({ deck, onExit }: { deck: DeckWithWords; onExit: () =>
 }
 
 export default function DictationPage() {
+  const { t } = useLocale();
   const router = useRouter();
   const [decks, setDecks] = useState<DeckWithWords[]>([]);
   const [loading, setLoading] = useState(true);
@@ -185,7 +187,7 @@ export default function DictationPage() {
           <ChevronLeft className="w-4 h-4 text-dark" />
         </motion.button>
         <div>
-          <h1 className="font-heading font-extrabold text-xl text-dark">Dictation</h1>
+          <h1 className="font-heading font-extrabold text-xl text-dark">{t.dictationTitle}</h1>
           <p className="font-body text-sm text-gray-500">{active ? active.sceneDesc : "Choose a deck"}</p>
         </div>
       </div>

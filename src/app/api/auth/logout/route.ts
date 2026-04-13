@@ -1,24 +1,14 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
+import { auth, signOut } from "@/auth";
 
 export async function POST() {
-  const cookieStore = await cookies();
-
-  const res = NextResponse.json({ ok: true });
-
-  // Clear the anonymous/linked user cookie so data doesn't bleed between sessions
-  res.cookies.set("kotoka-uid", "", {
-    httpOnly: true,
-    path: "/",
-    maxAge: 0,
-    sameSite: "lax",
-  });
-
-  // Also clear any leftover init flag
-  const existing = cookieStore.get("kotoka-uid");
-  if (!existing) {
-    // already gone
+  const session = await auth();
+  if (!session) {
+    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  return res;
+  // Sign out from NextAuth
+  await signOut();
+
+  return NextResponse.json({ ok: true });
 }

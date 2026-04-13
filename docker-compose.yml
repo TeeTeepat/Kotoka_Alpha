@@ -1,4 +1,3 @@
-version: '3.8'
 services:
   postgres:
     image: postgres:16-alpine
@@ -7,11 +6,21 @@ services:
       POSTGRES_USER: kotoka
       POSTGRES_PASSWORD: kotoka_dev
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U kotoka"]
+      test: ["CMD-SHELL", "pg_isready -U kotoka -d kotoka_phase1"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -21,12 +30,40 @@ services:
     ports:
       - "3000:3000"
     environment:
+      # Database
       DATABASE_URL: postgresql://kotoka:kotoka_dev@postgres:5432/kotoka_phase1
+      DIRECT_URL: postgresql://kotoka:kotoka_dev@postgres:5432/kotoka_phase1
+
+      # AI Services
       GEMINI_API_KEY: ${GEMINI_API_KEY}
+
+      # Azure Speech (server-side only)
+      AZURE_SPEECH_KEY: ${AZURE_SPEECH_KEY}
+      AZURE_SPEECH_REGION: ${AZURE_SPEECH_REGION:-eastus}
+
+      # NextAuth
+      AUTH_SECRET: ${AUTH_SECRET}
+      NEXTAUTH_URL: http://localhost:3000
+
+      # Google OAuth
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+
+      # ZeroBounce API
+      ZEROBOUNCE_API_KEY: ${ZEROBOUNCE_API_KEY}
+
+      # Trust host for development
+      AUTH_TRUST_HOST: "true"
+
+      # Redis
+      REDIS_URL: redis://redis:6379
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     command: sh -c "npx prisma migrate deploy && npm start"
 
 volumes:
   pgdata:
+  redisdata:

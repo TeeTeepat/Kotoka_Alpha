@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, Send, Loader2 } from "lucide-react";
 import type { DeckWithWords } from "@/types";
+import { useLocale } from "@/lib/i18n";
 
 type Difficulty = "easy" | "medium" | "hard";
 type Message = { role: "user" | "model"; content: string };
@@ -124,6 +125,7 @@ function ChatSession({
 }
 
 export default function ReadWritePage() {
+  const { t } = useLocale();
   const router = useRouter();
   const [decks, setDecks] = useState<DeckWithWords[]>([]);
   const [loading, setLoading] = useState(true);
@@ -150,7 +152,7 @@ export default function ReadWritePage() {
           <ChevronLeft className="w-4 h-4 text-dark" />
         </motion.button>
         <div>
-          <h1 className="font-heading font-extrabold text-xl text-dark">Read & Write</h1>
+          <h1 className="font-heading font-extrabold text-xl text-dark">{t.readWriteTitle}</h1>
           <p className="font-body text-sm text-gray-500">
             {started ? `${difficulty} · ${selectedDeck?.sceneDesc}` : "AI Conversation"}
           </p>

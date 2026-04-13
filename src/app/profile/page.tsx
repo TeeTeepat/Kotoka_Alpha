@@ -6,9 +6,11 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  LogOut, Heart, Flame, Coins, Target, Trophy, Globe, ChevronRight, MapPin,
+  LogOut, Heart, Flame, Coins, Target, Trophy, ChevronRight, MapPin,
 } from "lucide-react";
+import { useSoundPlayer } from "@/components/hooks/useSoundPlayer";
 import type { GachaItemData } from "@/types";
+import { useLocale } from "@/lib/i18n";
 
 const RARITY_PILL: Record<string, string> = {
   legendary: "bg-yellow-100 text-yellow-700",
@@ -214,6 +216,8 @@ export default function ProfilePage() {
     fetch("/api/memory-map").then((r) => r.ok ? r.json() : []).then((d) => Array.isArray(d) && setMapPins(d));
   }, []);
 
+  const { play } = useSoundPlayer();
+  const { t } = useLocale();
   const displayName = session?.user?.name ?? user?.name ?? "Learner";
   const displayEmail = session?.user?.email ?? "";
   const displayImage = session?.user?.image ?? null;
@@ -260,7 +264,7 @@ export default function ProfilePage() {
               <Flame className="w-4 h-4 text-orange" />
               <span className="font-heading font-extrabold text-lg text-dark">{user?.streak ?? 0}</span>
             </div>
-            <span className="font-body text-[10px] text-gray-400">Streak</span>
+            <span className="font-body text-[10px] text-gray-400">{t.profileStreak}</span>
           </div>
           <div className="flex flex-col items-center gap-0.5">
             <div className="flex items-center gap-1">
@@ -312,28 +316,6 @@ export default function ProfilePage() {
         )}
       </motion.div>
 
-      {/* Language setting */}
-      {(user?.targetLanguage || user?.learningLanguage) && (
-        <motion.button
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.15, duration: 0.4 }}
-          onClick={() => router.push("/onboarding/language")}
-          className="card-base p-4 w-full flex items-center justify-between"
-        >
-          <div className="flex items-center gap-3">
-            <Globe className="w-4 h-4 text-primary" />
-            <div className="text-left">
-              <p className="font-heading font-bold text-sm text-dark">Languages</p>
-              <p className="font-body text-xs text-gray-400">
-                {user.targetLanguage ?? "—"} → {user.learningLanguage ?? "—"}
-              </p>
-            </div>
-          </div>
-          <ChevronRight className="w-4 h-4 text-gray-400" />
-        </motion.button>
-      )}
-
       {/* Luggage card */}
       <motion.div
         initial={{ opacity: 0, y: 16 }}
@@ -357,7 +339,7 @@ export default function ProfilePage() {
         <motion.button
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.97 }}
-          onClick={() => setShowLogoutConfirm(true)}
+          onClick={() => { play("click"); setShowLogoutConfirm(true); }}
           disabled={loggingOut}
           className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-red-50 border border-red-200 text-red-600 font-heading font-bold text-sm hover:bg-red-100 transition-colors disabled:opacity-60"
         >
@@ -366,7 +348,7 @@ export default function ProfilePage() {
           ) : (
             <LogOut className="w-4 h-4" />
           )}
-          {loggingOut ? "Signing out…" : "Log Out"}
+          {loggingOut ? t.loading : t.profileLogout}
         </motion.button>
       </motion.div>
 
@@ -391,13 +373,13 @@ export default function ProfilePage() {
                 <motion.button whileTap={{ scale: 0.97 }}
                   onClick={() => setShowLogoutConfirm(false)}
                   className="flex-1 py-3 rounded-2xl border border-card-border font-heading font-bold text-sm text-gray-600 hover:bg-gray-50 transition-colors">
-                  Cancel
+                  {t.cancel}
                 </motion.button>
                 <motion.button whileTap={{ scale: 0.97 }}
                   onClick={handleLogout} disabled={loggingOut}
                   className="flex-1 py-3 rounded-2xl bg-red-500 font-heading font-bold text-sm text-white hover:bg-red-600 transition-colors disabled:opacity-60 flex items-center justify-center gap-2">
                   {loggingOut && <div className="w-3.5 h-3.5 border-2 border-red-300 border-t-white rounded-full animate-spin" />}
-                  {loggingOut ? "Signing out…" : "Log Out"}
+                  {loggingOut ? t.loading : t.profileLogout}
                 </motion.button>
               </div>
             </motion.div>

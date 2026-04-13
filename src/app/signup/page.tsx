@@ -8,6 +8,7 @@ import Image from "next/image";
 import { motion } from "framer-motion";
 import { User, Mail, Lock, Eye, EyeOff, AlertCircle, CheckCircle2, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useLocale } from "@/lib/i18n";
 
 function GoogleIcon() {
   return (
@@ -77,6 +78,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 type EmailStatus = "idle" | "checking" | "valid" | "invalid";
 
 export default function SignupPage() {
+  const { t } = useLocale();
   const router = useRouter();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -145,14 +147,14 @@ export default function SignupPage() {
       setSuccess(true); // registered but auto-login failed, redirect manually
       setTimeout(() => router.push("/login"), 1500);
     } else {
-      router.push("/onboarding/language");
+      router.push("/consent");
       router.refresh();
     }
   };
 
   const handleGoogle = async () => {
     setGoogleLoading(true);
-    await signIn("google", { callbackUrl: "/onboarding/language" });
+    await signIn("google", { callbackUrl: "/consent" });
   };
 
   return (
@@ -167,8 +169,8 @@ export default function SignupPage() {
         <div className="flex flex-col items-center gap-3">
           <Image src="/logo.png" alt="Kotoka" width={56} height={56} className="rounded-2xl shadow-card" />
           <div className="text-center">
-            <h1 className="font-heading font-extrabold text-2xl text-dark">Create account ✨</h1>
-            <p className="font-body text-sm text-gray-500 mt-1">Start your vocabulary journey today</p>
+            <h1 className="font-heading font-extrabold text-2xl text-dark">{t.signupTitle}</h1>
+            <p className="font-body text-sm text-gray-500 mt-1">{t.signupSubtitle}</p>
           </div>
         </div>
 
@@ -182,7 +184,7 @@ export default function SignupPage() {
           {googleLoading ? (
             <div className="w-4 h-4 border-2 border-gray-300 border-t-primary rounded-full animate-spin" />
           ) : <GoogleIcon />}
-          Continue with Google
+          {t.signupWithGoogle}
         </motion.button>
 
         {/* Divider */}
@@ -260,13 +262,13 @@ export default function SignupPage() {
           >
             {loading ? (
               <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-            ) : "Create Account"}
+            ) : t.signupCreateAccount}
           </motion.button>
         </form>
 
         <p className="text-center font-body text-sm text-gray-500">
-          Already have an account?{" "}
-          <Link href="/login" className="font-bold text-primary hover:underline">Sign in</Link>
+          {t.signupHaveAccount}{" "}
+          <Link href="/login" className="font-bold text-primary hover:underline">{t.signupSignIn}</Link>
         </p>
       </motion.div>
     </div>

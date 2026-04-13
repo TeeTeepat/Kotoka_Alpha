@@ -1,54 +1,137 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import { zhipuText } from "@/lib/gemini";
 import { prisma } from "@/lib/db";
+import { auth } from "@/auth";
 
-function getSeasonInfo(now: Date) {
-  const m = now.getMonth() + 1;
-  const y = now.getFullYear();
-  if (m >= 12) return { season: "Autumn 🍂", nextReset: `April 1, ${y + 1}` };
-  if (m >= 8)  return { season: "Summer ☀️",  nextReset: `December 1, ${y}` };
-  if (m >= 4)  return { season: "Spring 🌸",  nextReset: `August 1, ${y}` };
-  return        { season: "Winter ❄️",  nextReset: `April 1, ${y}` };
+const PRICES: Record<string, number> = { luggage: 100, vocab_pack: 80 };
+
+const LUGGAGE_POOL = {
+  legendary: [
+    { name: "Golden Passport", emoji: "🛂" },
+    { name: "Diamond Briefcase", emoji: "💎" },
+    { name: "Platinum Case", emoji: "✨" },
+  ],
+  epic: [
+    { name: "Safari Pack", emoji: "🎒" },
+    { name: "Vintage Trunk", emoji: "🧳" },
+    { name: "Treasure Chest", emoji: "🎁" },
+  ],
+  rare: [
+    { name: "City Explorer", emoji: "🗺️" },
+    { name: "Laptop Bag", emoji: "💼" },
+    { name: "Camera Bag", emoji: "📷" },
+    { name: "Travel Wallet", emoji: "👜" },
+  ],
+  common: [
+    { name: "Canvas Tote", emoji: "👝" },
+    { name: "Gym Bag", emoji: "🏋️" },
+    { name: "Shopping Bag", emoji: "🛍️" },
+    { name: "Paper Bag", emoji: "📦" },
+    { name: "Drawstring Bag", emoji: "🎽" },
+  ],
+};
+
+const SITUATIONS = [
+  "airport check-in", "restaurant ordering", "hotel reception",
+  "shopping mall", "pharmacy visit", "taxi ride", "coffee shop",
+  "job interview", "doctor visit", "supermarket", "gym workout",
+  "museum visit", "beach day", "birthday party", "train station",
+];
+
+const DECK_COLORS = ["#8B5CF6", "#1ad3e2", "#f5c842", "#ff8c42", "#ec4899", "#10b981"];
+
+function rollRarity(): "legendary" | "epic" | "rare" | "common" {
+  const r = Math.random();
+  if (r < 0.03) return "legendary";
+  if (r < 0.15) return "epic";
+  if (r < 0.40) return "rare";
+  return "common";
 }
 
-const MASTERY_THRESHOLD = 5;
-const FADE_DAYS = 14;
-const CAPACITY = 100;
+function pickRandom<T>(arr: T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
 
-export async function GET() {
-  const cookieStore = await cookies();
-  const userId = cookieStore.get("kotoka-uid")?.value;
-  if (!userId) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+export async function POST(req: NextRequest) {
+  const session = await auth();
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  }
+  const userId = session.user.id;
 
-  const [masteredWords, gachaItems] = await Promise.all([
-    prisma.word.findMany({
-      where: {
-        deck: { userId },
-        OR: [{ masteryCount: { gte: MASTERY_THRESHOLD } }, { interval: { gte: 21 } }],
+  const user = await prisma.user.findUnique({ where: { id: userId } });
+  if (!user) return NextResponse.json({ error: "User not found" }, { status: 401 });
+
+  const { type } = await req.json();
+  const price = PRICES[type];
+  if (!price) return NextResponse.json({ error: "Invalid gacha type" }, { status: 400 });
+  if (user.coins < price) return NextResponse.json({ error: "Insufficient coins" }, { status: 400 });
+
+  const updatedUser = await prisma.user.update({
+    where: { id: userId },
+    data: { coins: { decrement: price } },
+  });
+
+  // --- Luggage Draw ---
+  if (type === "luggage") {
+    const rarity = rollRarity();
+    const picked = pickRandom(LUGGAGE_POOL[rarity]);
+    const gachaItem = await prisma.gachaItem.create({
+      data: { userId, type, name: picked.name, rarity, emoji: picked.emoji },
+    });
+    return NextResponse.json({ item: gachaItem, user: updatedUser });
+  }
+
+  // --- Vocab Pack Draw (Gemini AI) ---
+  const situation = pickRandom(SITUATIONS);
+  const nativeLang = user.targetLanguage || "Thai";
+  const learningLang = user.learningLanguage || "English";
+  const color = pickRandom(DECK_COLORS);
+
+  type VocabEntry = { word: string; translation: string; example: string; difficulty: string; phonetic: string };
+  let vocabulary: VocabEntry[] = [];
+  let sceneName = situation;
+
+  try {
+    const prompt = `Generate 8 ${learningLang} vocabulary words for the situation: "${situation}".
+The learner's native language is ${nativeLang}. Return ONLY valid JSON, no markdown:
+{"scene":"${nativeLang} label for this situation (max 4 words)","vocabulary":[{"word":"${learningLang} word","translation":"${nativeLang} meaning","example":"natural ${learningLang} sentence","difficulty":"beginner|intermediate|advanced","phonetic":"IPA"}]}`;
+
+    const raw = await zhipuText([{ role: "user", content: prompt }]);
+    const text = raw.replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "").trim();
+    const parsed = JSON.parse(text);
+    sceneName = parsed.scene || situation;
+    vocabulary = Array.isArray(parsed.vocabulary) ? parsed.vocabulary : [];
+  } catch {
+    // fallback: create deck with no words if Gemini fails
+  }
+
+  const deck = await prisma.deck.create({
+    data: {
+      userId,
+      sceneDesc: sceneName,
+      emotionScore: 70,
+      atmosphere: "ambient",
+      ambientSound: "city",
+      colorPalette: color,
+      words: {
+        create: vocabulary.map((v) => ({
+          word: v.word || "",
+          translation: v.translation || "",
+          example: v.example || "",
+          difficulty: v.difficulty || "intermediate",
+          phonetic: v.phonetic || "",
+        })),
       },
-      orderBy: { masteryCount: "desc" },
-      select: { id: true, word: true, masteryCount: true, interval: true, lastReviewedAt: true },
-    }),
-    prisma.gachaItem.findMany({
-      where: { userId },
-      orderBy: { pulledAt: "asc" },
-    }),
-  ]);
-
-  const now = Date.now();
-  const fadeCutoff = FADE_DAYS * 24 * 60 * 60 * 1000;
-
-  const items = gachaItems.map((item, i) => {
-    const mw = i < masteredWords.length ? masteredWords[i] : null;
-    const isFading = mw?.lastReviewedAt
-      ? now - new Date(mw.lastReviewedAt).getTime() > fadeCutoff
-      : false;
-    return { ...item, isUnlocked: i < masteredWords.length, masteredWord: mw, isFading };
+    },
+    include: { words: true },
   });
 
-  return NextResponse.json({
-    items,
-    capacity: { used: masteredWords.length, total: CAPACITY },
-    season: getSeasonInfo(new Date()),
+  const rarity = rollRarity();
+  const gachaItem = await prisma.gachaItem.create({
+    data: { userId, type, name: `${sceneName} Pack`, rarity, emoji: "📚" },
   });
+
+  return NextResponse.json({ item: gachaItem, user: updatedUser, deck });
 }

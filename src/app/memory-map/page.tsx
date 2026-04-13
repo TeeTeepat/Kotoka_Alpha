@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MapPin, Navigation, X, Footprints, BookOpen } from "lucide-react";
 import Link from "next/link";
+import { useLocale } from "@/lib/i18n";
 
 interface MapWord { id: string; word: string; translation: string; masteryCount: number; }
 interface MapPin {
@@ -47,6 +48,7 @@ function getBounds(pins: MapPin[]) {
 interface Notification { pin: MapPin; word: MapWord; }
 
 export default function MemoryMapPage() {
+  const { t } = useLocale();
   const [pins, setPins] = useState<MapPin[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDemoMode, setIsDemoMode] = useState(false);
@@ -136,7 +138,7 @@ export default function MemoryMapPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="font-heading font-extrabold text-xl text-dark">🗺️ Memory Map</h1>
+          <h1 className="font-heading font-extrabold text-xl text-dark">{t.memoryMapTitle}</h1>
           <p className="font-body text-xs text-gray-500">
             {isDemoMode ? "Demo mode — snap a photo to mark real memories" : `${activePins.length} memory ${activePins.length === 1 ? "location" : "locations"}`}
           </p>
@@ -296,7 +298,7 @@ export default function MemoryMapPage() {
               </p>
             </div>
             <Link href="/review/flashcards" className="text-xs font-heading font-bold text-primary whitespace-nowrap">
-              Review →
+              {t.memoryMapReview} →
             </Link>
           </motion.div>
         )}
@@ -371,7 +373,7 @@ export default function MemoryMapPage() {
                 onClick={() => setSelectedPin(null)}
                 className="block w-full py-3 rounded-2xl bg-primary text-white font-heading font-bold text-sm text-center"
               >
-                Review These Words
+                {t.memoryMapReview}
               </Link>
             </motion.div>
           </motion.div>

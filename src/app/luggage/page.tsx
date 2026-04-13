@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
+import { useLocale } from "@/lib/i18n";
 
 interface MasteredWord { id: string; word: string; masteryCount: number; lastReviewedAt: string | null; }
 interface LuggageItem {
@@ -94,6 +95,7 @@ export default function LuggagePage() {
   const [data, setData] = useState<LuggageData | null>(null);
   const [loading, setLoading] = useState(true);
   const [isOpen, setIsOpen] = useState(false);
+  const { t } = useLocale();
 
   useEffect(() => {
     fetch("/api/luggage")
@@ -122,8 +124,8 @@ export default function LuggagePage() {
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="font-heading font-extrabold text-xl text-dark">🧳 Living Luggage</h1>
-          <p className="font-body text-sm text-gray-500">{unlockedItems.length} mastered items</p>
+          <h1 className="font-heading font-extrabold text-xl text-dark">{t.luggageTitle}</h1>
+          <p className="font-body text-sm text-gray-500">{unlockedItems.length} {t.luggageWordsCollected}</p>
         </div>
         <Link href="/memory-map"
           className="text-xs font-heading font-bold text-primary px-3 py-1.5 rounded-xl border border-primary/30 bg-primary/5">
@@ -168,9 +170,9 @@ export default function LuggagePage() {
       {items.length === 0 ? (
         <div className="card-base p-8 text-center">
           <p className="text-4xl mb-3">🧳</p>
-          <p className="font-heading font-bold text-dark mb-1">Empty luggage!</p>
-          <p className="text-sm text-gray-500 font-body mb-4">Draw gacha items and master 5 flashcards in a row to fill your suitcase.</p>
-          <Link href="/gacha" className="btn-aqua px-6 py-2.5 inline-flex">Go to Gacha</Link>
+          <p className="font-heading font-bold text-dark mb-1">{t.luggageEmpty}</p>
+          <p className="text-sm text-gray-500 font-body mb-4">{t.luggageEmptyDesc}</p>
+          <Link href="/gacha" className="btn-aqua px-6 py-2.5 inline-flex">{t.gachaTitle}</Link>
         </div>
       ) : (
         <div className="space-y-4">

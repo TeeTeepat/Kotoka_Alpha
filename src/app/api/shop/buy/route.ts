@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { cookies } from "next/headers";
 import { prisma } from "@/lib/db";
+import { auth } from "@/auth";
 
 const PRICES: Record<string, number> = {
   heart1: 20,
@@ -9,12 +9,11 @@ const PRICES: Record<string, number> = {
 };
 
 export async function POST(req: NextRequest) {
-  const cookieStore = await cookies();
-  const userId = cookieStore.get("kotoka-uid")?.value;
-
-  if (!userId) {
+  const session = await auth();
+  if (!session?.user?.id) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
+  const userId = session.user.id;
 
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user) {
@@ -32,7 +31,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Insufficient coins" }, { status: 400 });
   }
 
-  const data: Record<string, unknown> = { coins: user.coins - price };
+  const data: Record<string, unknown> = {};
 
   if (item === "heart1") {
     data.hearts = Math.min(5, user.hearts + 1);
@@ -44,7 +43,10 @@ export async function POST(req: NextRequest) {
 
   const updated = await prisma.user.update({
     where: { id: userId },
-    data,
+    data: {
+      ...data,
+      coins: { decrement: price },
+    },
   });
 
   return NextResponse.json(updated);
