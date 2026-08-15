@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Trophy, MapPin, BookOpen, MessageCircle } from "lucide-react";
+import { Trophy, MapPin, Sprout, MessageCircle } from "lucide-react";
 import type { StudyNode } from "@/types";
 import { useSoundPlayer } from "@/components/hooks/useSoundPlayer";
 import WindingPath from "@/components/path/WindingPath";
@@ -113,7 +113,7 @@ export default function ReviewPage() {
       <div className="grid grid-cols-2 gap-3">
         {[
           { href: "/review/conversation", icon: MessageCircle, label: t.reviewConversation, desc: t.conversationInstruction, color: "bg-blue-50 text-blue-600" },
-          { href: "/story", icon: BookOpen, label: t.storyTitle, desc: t.storySubtitle, color: "bg-purple-50 text-purple-600" },
+          { href: "/grove", icon: Sprout, label: t.groveTitle, desc: t.groveSubtitle, color: "bg-purple-50 text-purple-600" },
           { href: "/community/leaderboard", icon: Trophy, label: t.leaderboardTitle, desc: t.leaderboardSubtitle, color: "bg-amber-50 text-amber-600" },
           { href: "/community/nearby", icon: MapPin, label: t.nearbyTitle, desc: t.nearbySubtitle, color: "bg-emerald-50 text-emerald-600" },
         ].map((item, i) => (

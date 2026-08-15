@@ -253,6 +253,10 @@ export interface Strings {
   tagSaved: string;
   tagPreview: string;
 
+  // ── Grove ───────────────────────────────────────────────
+  groveTitle: string;
+  groveSubtitle: string;
+
   // ── Story ───────────────────────────────────────────────
   storyTitle: string;
   storySubtitle: string;
@@ -596,6 +600,10 @@ const th: Strings = {
   tagSaved: "บันทึกเด็คแล้ว!",
   tagPreview: "ตัวอย่าง",
 
+  // Grove
+  groveTitle: "เดอะโกรฟ",
+  groveSubtitle: "คำศัพท์ที่เติบโตแล้ว ฟังซ้ำได้ทุกเมื่อ",
+
   // Story
   storyTitle: "เรื่องราว",
   storySubtitle: "อ่านและฟังเรื่องราวภาษาอังกฤษ",
@@ -938,6 +946,10 @@ const en: Strings = {
   tagSaving: "Saving...",
   tagSaved: "Deck Saved!",
   tagPreview: "Preview",
+
+  // Grove
+  groveTitle: "The Grove",
+  groveSubtitle: "Your grown words, replayable anytime",
 
   // Story
   storyTitle: "Story",

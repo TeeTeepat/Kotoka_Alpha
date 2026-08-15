@@ -21,59 +21,82 @@ model Deck {
   locationLat  Float?
   locationLng  Float?
   locationName String?
-  imageBase64  String?   @db.Text
+  imageBase64  String?  @db.Text
   words        Word[]
   user         User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
 }
 
 model Word {
-  id             String    @id @default(cuid())
-  deckId         String
-  word           String
-  translation    String
-  example        String
-  difficulty     String
-  phonetic       String
-  masteryCount   Int       @default(0)
-  easeFactor     Float     @default(2.5)
-  interval       Int       @default(1)
-  nextReviewAt   DateTime  @default(now())
-  lastReviewedAt DateTime?
-  deck           Deck      @relation(fields: [deckId], references: [id], onDelete: Cascade)
+  id              String          @id @default(cuid())
+  deckId          String
+  word            String
+  translation     String
+  example         String
+  difficulty      String
+  phonetic        String
+  masteryCount    Int             @default(0)
+  easeFactor      Float           @default(2.5)
+  interval        Int             @default(1)
+  nextReviewAt    DateTime        @default(now())
+  lastReviewedAt  DateTime?
+  nextDueDate     DateTime?
+  promotedAt      DateTime?
+  srsRung         Int             @default(0)
+  sensorySize     String?
+  sensoryTextures String[]
+  bodyPlan        String?
+  becauseText     String?
+  ambientSoundUrl String?
+  photoUrl        String?
+  deck            Deck            @relation(fields: [deckId], references: [id], onDelete: Cascade)
+  evidence        EvidenceStore[]
+  journalEntries  JournalEntry[]
+  collectibles    Collectible[]
+
+  @@index([nextDueDate])
+  @@index([promotedAt])
 }
 
 model User {
-  id                 String      @id @default(cuid())
-  name               String?
-  email              String?     @unique
-  emailVerified      DateTime?
-  image              String?
-  password           String?
-  hearts             Int         @default(5)
-  streak             Int         @default(0)
-  coins              Int         @default(150)
-  streakFreezeActive Boolean     @default(false)
-  targetLanguage     String?
+  id                      String          @id @default(cuid())
+  name                    String?
+  email                   String?         @unique
+  emailVerified           DateTime?
+  image                   String?
+  password                String?
+  hearts                  Int             @default(5)
+  streak                  Int             @default(0)
+  coins                   Int             @default(150)
+  streakFreezeActive      Boolean         @default(false)
+  targetLanguage          String?
   learningLanguage        String?
   initialLearningLanguage String?
-  cefrLevel          String?
-  lastSessionNodeId  String?
-  lastSessionSkill   String?
-  lastSessionProgress Int?
-  lastSessionStartedAt DateTime?
-  completedNodes     Int         @default(0)
-  timezone           String?     @default("UTC")
-  lastStreakDate     String?
-  lastHeartAt        DateTime?
-  isOnboarded        Boolean     @default(false)
-  age                Int?
-  job                String?
-  salary             String?
-  createdAt          DateTime    @default(now())
-  gachaItems         GachaItem[]
-  accounts           Account[]
-  sessions           Session[]
-  decks              Deck[]
+  cefrLevel               String?
+  lastSessionNodeId       String?
+  lastSessionSkill        String?
+  lastSessionProgress     Int?
+  lastSessionStartedAt    DateTime?
+  completedNodes          Int             @default(0)
+  timezone                String?         @default("UTC")
+  lastStreakDate          String?
+  lastHeartAt             DateTime?
+  isOnboarded             Boolean         @default(false)
+  age                     Int?
+  job                     String?
+  salary                  String?
+  createdAt               DateTime        @default(now())
+  ageBand                 String?
+  checkpointDoneAt        DateTime?
+  peakBPendingAt          DateTime?
+  dayObjectWordId         String?
+  gachaItems              GachaItem[]
+  accounts                Account[]
+  sessions                Session[]
+  decks                   Deck[]
+  evidence                EvidenceStore[]
+  journalEntries          JournalEntry[]
+  collectibles            Collectible[]
+  topicShimmers           TopicShimmer[]
 }
 
 model Account {
@@ -138,14 +161,14 @@ model ConversationSession {
 }
 
 model WeeklyStory {
-  id           String   @id @default(cuid())
-  userId       String
-  weekNumber   Int
-  storyText    String   @db.Text
-  wordsUsed    String[]
-  reflectionQ  String
-  language     String   @default("en")
-  createdAt    DateTime @default(now())
+  id          String   @id @default(cuid())
+  userId      String
+  weekNumber  Int
+  storyText   String   @db.Text
+  wordsUsed   String[]
+  reflectionQ String
+  language    String   @default("en")
+  createdAt   DateTime @default(now())
 
   @@unique([userId, weekNumber])
 }
@@ -185,4 +208,62 @@ model UserConsent {
   consentedAt     DateTime @default(now())
   updatedAt       DateTime @updatedAt
   ipAddress       String?
+}
+
+model EvidenceStore {
+  id           String   @id @default(cuid())
+  userId       String
+  wordId       String
+  sentenceText String
+  audioUrl     String?
+  createdAt    DateTime @default(now())
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  word         Word     @relation(fields: [wordId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([wordId])
+}
+
+model JournalEntry {
+  id         String   @id @default(cuid())
+  userId     String
+  wordId     String?
+  kind       String
+  payload    Json     @default("{}")
+  gateChosen String?
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  word       Word?    @relation(fields: [wordId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([wordId])
+}
+
+model Collectible {
+  id              String    @id @default(cuid())
+  userId          String
+  wordId          String
+  posX            Int
+  posY            Int
+  dim             Boolean   @default(true)
+  settledPhotoUrl String?
+  settledAt       DateTime?
+  createdAt       DateTime  @default(now())
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  word            Word      @relation(fields: [wordId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, wordId])
+  @@index([userId, dim])
+}
+
+model TopicShimmer {
+  id       String   @id @default(cuid())
+  userId   String
+  topic    String
+  cefrBand String
+  earnedAt DateTime @default(now())
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, topic, cefrBand])
+  @@index([userId])
 }

@@ -3,7 +3,7 @@
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Home, Camera, Layers, ShoppingBag, UserCircle2 } from "lucide-react";
+import { Home, Camera, Layers, Sprout, ShoppingBag, UserCircle2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useSoundPlayer } from "@/components/hooks/useSoundPlayer";
 import { useLocale } from "@/lib/i18n";
@@ -17,6 +17,7 @@ export default function BottomNav() {
     { href: "/", icon: Home, label: t.navHome },
     { href: "/snap", icon: Camera, label: t.navSnap },
     { href: "/review", icon: Layers, label: t.navReview },
+    { href: "/grove", icon: Sprout, label: t.groveTitle },
     { href: "/shop", icon: ShoppingBag, label: t.shopTitle },
     { href: "/profile", icon: UserCircle2, label: t.profileTitle },
   ];

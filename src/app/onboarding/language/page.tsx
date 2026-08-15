@@ -328,7 +328,8 @@ export default function LanguageOnboardingPage() {
     setSaving(false);
     const savedLevel = localStorage.getItem("kotoka_cefr_level");
     if (!savedLevel) {
-      router.push("/onboarding/cefr");
+      // Age-band pick comes before the CEFR test; the ageband step routes onward to /onboarding/cefr
+      router.push("/onboarding/ageband");
     } else {
       router.push("/");
     }

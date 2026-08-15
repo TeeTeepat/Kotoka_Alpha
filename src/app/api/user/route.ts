@@ -30,6 +30,8 @@ export async function GET() {
     learningLanguage: user.learningLanguage, initialLearningLanguage: user.initialLearningLanguage,
     cefrLevel: user.cefrLevel, isOnboarded: user.isOnboarded,
     age: user.age, job: user.job, salary: user.salary,
+    // Existing users without an explicit band default to '11-15'
+    ageBand: user.ageBand === "7-10" || user.ageBand === "11-15" ? user.ageBand : "11-15",
     completedNodes: user.completedNodes, timezone: user.timezone,
     lastStreakDate: user.lastStreakDate, createdAt: user.createdAt,
   };
@@ -47,7 +49,7 @@ export async function PATCH(req: NextRequest) {
   const body = await req.json();
   // hearts is intentionally excluded — use POST /api/user/hearts for atomic deduction
   // NOTE: initialLearningLanguage is NOT accepted from the client body — server-side only
-  const { streak, coins, streakFreezeActive, targetLanguage, learningLanguage, age, job, salary, isOnboarded, cefrLevel } = body;
+  const { streak, coins, streakFreezeActive, targetLanguage, learningLanguage, age, job, salary, isOnboarded, cefrLevel, ageBand } = body;
 
   const data: Record<string, unknown> = {};
   if (streak !== undefined) data.streak = streak;
@@ -59,6 +61,12 @@ export async function PATCH(req: NextRequest) {
   if (salary !== undefined) data.salary = salary;
   if (isOnboarded !== undefined) data.isOnboarded = isOnboarded;
   if (cefrLevel !== undefined) data.cefrLevel = cefrLevel;
+  if (ageBand !== undefined) {
+    if (ageBand !== "7-10" && ageBand !== "11-15") {
+      return NextResponse.json({ error: "ageBand must be '7-10' or '11-15'" }, { status: 400 });
+    }
+    data.ageBand = ageBand;
+  }
 
   // Auto-snapshot: when an onboarded user updates learningLanguage for the first time,
   // capture the pre-update value into initialLearningLanguage (used as the streak-gate flag).
