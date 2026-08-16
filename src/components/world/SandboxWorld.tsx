@@ -10,6 +10,7 @@ import { hasShimmer, useShimmerTopics } from "./ShimmerOverlay";
 import PeakB from "@/components/daily/PeakB";
 import type { WorldCollectible, WorldPeakBPending } from "./types";
 import { getTimeOfDay, type Weather } from "@/lib/compositing";
+import { useLocale } from "@/lib/i18n";
 
 /**
  * The Living Sandbox home world. Collectibles live on a free grid,
@@ -17,6 +18,7 @@ import { getTimeOfDay, type Weather } from "@/lib/compositing";
  * One curiosity bubble near the newest collectible; nothing is announced.
  */
 export default function SandboxWorld() {
+  const { t } = useLocale();
   const containerRef = useRef<HTMLDivElement>(null);
   const [weather, setWeather] = useState<Weather>("clear");
   const [collectibles, setCollectibles] = useState<WorldCollectible[]>([]);
@@ -158,18 +160,29 @@ export default function SandboxWorld() {
           </Link>
         )}
 
-        {/* Empty world: quiet hint, no banner */}
+        {/* Empty world: quiet hint plus a visible way in */}
         {loaded && collectibles.length === 0 && (
-          <motion.p
+          <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.8, duration: 1 }}
-            className={`absolute left-0 right-0 top-[30%] text-center font-body text-sm ${
-              night ? "text-white/60" : "text-dark/40"
-            }`}
+            className="absolute left-0 right-0 top-[26%] flex flex-col items-center gap-3 px-6 text-center"
           >
-            The world is waiting for its first thing.
-          </motion.p>
+            <p
+              className={`font-body text-sm ${
+                night ? "text-white/60" : "text-dark/40"
+              }`}
+            >
+              The world is waiting for its first thing.
+            </p>
+            <Link
+              href="/daily"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-primary text-white font-body font-semibold text-sm shadow-card"
+            >
+              <Camera className="w-4 h-4" />
+              {t.journalEmptyCta}
+            </Link>
+          </motion.div>
         )}
 
         {/* Entry to today's loop — prominent, unannounced */}

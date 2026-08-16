@@ -1,11 +1,12 @@
 "use client";
 
-// /daily — the 9-step Living Sandbox (FindWord) daily loop.
+// /daily — the Living Sandbox (FindWord) daily loop, and the ONLY camera
+// flow in the app (/snap redirects here).
 //
-// Snap → Confirm (rigid, always first) → flexible steps in any order
-// {Sensory Tags, Listen, Flashcard, Read/Write, Dictation} → Pronunciation
-// → Second Take (checkpoint, reachable at any time) → Peak A → done → Peak B.
-// No score is ever shown inside the loop.
+// Snap → AR Confirm (freeze-frame pill labels, always first) → flexible
+// steps in any order {Listen, Flashcard, Read/Write, Dictation} →
+// Pronunciation → Second Take (checkpoint, reachable at any time) →
+// Peak A → done → Peak B. No score is ever shown inside the loop.
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -21,18 +22,20 @@ import {
   Volume2,
   X,
 } from "lucide-react";
+import ARSnapConfirm from "@/components/daily/ARSnapConfirm";
 import PathPicker from "@/components/daily/PathPicker";
 import PeakA from "@/components/daily/PeakA";
 import PeakB from "@/components/daily/PeakB";
 import WorldListeningCue from "@/components/daily/WorldListeningCue";
 import type { FlexibleStepId, GateId, AgeBand } from "@/components/daily/gates";
+import type { SnapObject } from "@/lib/gemini";
+import type { Weather } from "@/lib/compositing";
 import {
   listenReplaysForBand,
   readWriteTaskForBand,
   sizingForBand,
   normalizeBand,
 } from "@/lib/srs/fixedSchedule";
-import { SENSORY_SIZES, TEXTURES } from "@/lib/compositing";
 
 /* ────────────────────────────── types ────────────────────────────── */
 
@@ -43,12 +46,6 @@ interface SessionWord {
   becauseText: string | null;
   photoUrl: string | null;
   isReview: boolean;
-}
-
-interface NeighbourWord {
-  word: string;
-  thai: string;
-  because: string;
 }
 
 type Phase =
@@ -66,16 +63,19 @@ type Phase =
   | "wrap"
   | "peak_b";
 
-const ALL_FLEX_STEPS: FlexibleStepId[] = [
-  "sensory_tags",
-  "listen",
-  "flashcard",
-  "read_write",
-  "dictation",
+/** Phases in which progress is worth saving for auto-resume — the loop's
+ *  "middle": after words exist, before the ceremonial done-for-today beats. */
+const RESUMABLE_PHASES: readonly Phase[] = [
+  "path",
+  "flex",
+  "pronunciation",
+  "cue",
+  "second_take",
 ];
 
+const ALL_FLEX_STEPS: FlexibleStepId[] = ["listen", "flashcard", "read_write", "dictation"];
+
 const STEP_LABEL: Record<FlexibleStepId, string> = {
-  sensory_tags: "Sensory tags",
   listen: "Listen",
   flashcard: "Flashcards",
   read_write: "Read & write",
@@ -110,8 +110,141 @@ function compressToThumb(dataUrl: string): Promise<string> {
   });
 }
 
+/** Fire-and-forget LINE demo hook — never awaited by callers, never blocks the loop. */
+interface LoopCompleteDetails {
+  stepsDone: number;
+  totalSteps: number;
+  pronScore?: number;
+  voiceClipId?: string;
+}
+
+function reportStep(
+  event: "step_complete" | "loop_complete",
+  stepName?: string,
+  wordsLearned?: string[],
+  loopComplete?: LoopCompleteDetails
+) {
+  fetch("/api/daily/step-report", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ event, stepName, wordsLearned, ...loopComplete }),
+  }).catch(() => {});
+}
+
+function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result;
+      if (typeof result !== "string") {
+        reject(new Error("Unable to encode recording"));
+        return;
+      }
+      resolve(result.split(",", 2)[1] ?? "");
+    };
+    reader.onerror = () => reject(reader.error ?? new Error("Unable to encode recording"));
+    reader.readAsDataURL(blob);
+  });
+}
+
+// Azure's pronunciation service expects PCM WAV rather than MediaRecorder's WebM.
+async function blobToWavBase64(blob: Blob): Promise<string> {
+  const audioContext = new AudioContext();
+  try {
+    const audioBuffer = await audioContext.decodeAudioData(await blob.arrayBuffer());
+    const targetRate = 16_000;
+    const frameCount = Math.round(audioBuffer.duration * targetRate);
+    const offlineContext = new OfflineAudioContext(1, frameCount, targetRate);
+    const source = offlineContext.createBufferSource();
+    source.buffer = audioBuffer;
+    source.connect(offlineContext.destination);
+    source.start();
+    const resampled = await offlineContext.startRendering();
+
+    const samples = resampled.getChannelData(0);
+    const dataSize = samples.length * 2;
+    const wav = new ArrayBuffer(44 + dataSize);
+    const view = new DataView(wav);
+    const writeString = (offset: number, value: string) => {
+      for (let i = 0; i < value.length; i++) view.setUint8(offset + i, value.charCodeAt(i));
+    };
+    writeString(0, "RIFF");
+    view.setUint32(4, 36 + dataSize, true);
+    writeString(8, "WAVE");
+    writeString(12, "fmt ");
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true);
+    view.setUint16(22, 1, true);
+    view.setUint32(24, targetRate, true);
+    view.setUint32(28, targetRate * 2, true);
+    view.setUint16(32, 2, true);
+    view.setUint16(34, 16, true);
+    writeString(36, "data");
+    view.setUint32(40, dataSize, true);
+    for (let i = 0; i < samples.length; i++) {
+      const sample = Math.max(-1, Math.min(1, samples[i]));
+      view.setInt16(44 + i * 2, sample < 0 ? sample * 0x8000 : sample * 0x7fff, true);
+    }
+
+    const bytes = new Uint8Array(wav);
+    let binary = "";
+    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+    return btoa(binary);
+  } finally {
+    await audioContext.close();
+  }
+}
+
+/* ── Auto-resume: saved mid-loop progress, scoped to today's calendar date ── */
+
+const PROGRESS_KEY = "kotoka-daily-progress";
+
+interface SavedProgress {
+  date: string;
+  phase: Phase;
+  photoThumb: string | null;
+  words: SessionWord[];
+  seedWordId: string | null;
+  flexQueue: FlexibleStepId[];
+  stepsDone: number;
+  ageBand: AgeBand;
+  weatherAtSnap: string | null;
+}
+
+function todayKey(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function saveProgress(p: Omit<SavedProgress, "date">) {
+  try {
+    localStorage.setItem(PROGRESS_KEY, JSON.stringify({ date: todayKey(), ...p }));
+  } catch {
+    // storage full/unavailable — resume just won't be offered next time
+  }
+}
+
+function clearProgress() {
+  try {
+    localStorage.removeItem(PROGRESS_KEY);
+  } catch {
+    // ignore
+  }
+}
+
+function loadProgress(): SavedProgress | null {
+  try {
+    const raw = localStorage.getItem(PROGRESS_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as SavedProgress;
+    if (parsed.date !== todayKey()) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
 /** Simple record/playback hook — no analysis, no grading. */
-function useRecorder() {
+function useRecorder(onRecorded?: (blob: Blob) => void) {
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const [recording, setRecording] = useState(false);
@@ -133,6 +266,7 @@ function useRecorder() {
       rec.onstop = () => {
         const blob = new Blob(chunksRef.current, { type: rec.mimeType });
         setAudioUrl(URL.createObjectURL(blob));
+        onRecorded?.(blob);
         stream.getTracks().forEach((t) => t.stop());
       };
       recorderRef.current = rec;
@@ -141,7 +275,7 @@ function useRecorder() {
     } catch {
       setUnsupported(true);
     }
-  }, []);
+  }, [onRecorded]);
 
   const stop = useCallback(() => {
     recorderRef.current?.stop();
@@ -294,97 +428,6 @@ function FlashcardStep({
       <p className="font-body text-xs text-gray-300">
         {index + 1} / {words.length}
       </p>
-    </div>
-  );
-}
-
-const TEXTURE_EMOJI: Record<string, string> = {
-  furry: "🐻",
-  scaly: "🐍",
-  smooth: "🥚",
-  rough: "🪨",
-  soft: "☁️",
-  hard: "🧱",
-  warm: "🔥",
-  cold: "🧊",
-};
-
-function SensoryStep({
-  word,
-  onDone,
-}: {
-  word: SessionWord;
-  onDone: () => void;
-}) {
-  const [size, setSize] = useState<string | null>(null);
-  const [textures, setTextures] = useState<string[]>([]);
-
-  const iconCount = (size ? 1 : 0) + textures.length;
-
-  const toggleTexture = (t: string) => {
-    setTextures((prev) =>
-      prev.includes(t)
-        ? prev.filter((x) => x !== t)
-        : iconCount < 8
-          ? [...prev, t]
-          : prev
-    );
-  };
-
-  const save = () => {
-    fetch("/api/daily/sensory", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ wordId: word.id, size, textures }),
-    }).catch(() => {});
-    onDone();
-  };
-
-  return (
-    <div className="card-base p-5 flex flex-col gap-4">
-      <p className="font-heading font-extrabold text-lg text-dark text-center">
-        How does the {word.word} feel?
-      </p>
-      <div className="flex justify-center gap-3">
-        {SENSORY_SIZES.map((s) => (
-          <button
-            key={s}
-            type="button"
-            onClick={() => setSize((cur) => (cur === s ? null : s))}
-            className={`px-4 py-2 rounded-2xl font-heading font-bold text-sm capitalize border-2 transition-colors ${
-              size === s
-                ? "border-primary bg-primary/10 text-primary"
-                : "border-gray-100 text-gray-400"
-            }`}
-          >
-            {s === "small" ? "🐁" : s === "medium" ? "🐕" : "🐘"} {s}
-          </button>
-        ))}
-      </div>
-      <div className="grid grid-cols-4 gap-2">
-        {TEXTURES.map((t) => (
-          <button
-            key={t}
-            type="button"
-            onClick={() => toggleTexture(t)}
-            className={`py-3 rounded-2xl flex flex-col items-center gap-1 border-2 transition-colors ${
-              textures.includes(t)
-                ? "border-primary bg-primary/10"
-                : "border-gray-100"
-            }`}
-          >
-            <span className="text-xl">{TEXTURE_EMOJI[t]}</span>
-            <span className="font-body text-[10px] text-gray-500 capitalize">{t}</span>
-          </button>
-        ))}
-      </div>
-      <button
-        type="button"
-        onClick={save}
-        className="btn-aqua w-full py-3 justify-center"
-      >
-        <Check className="w-4 h-4" /> Keep these
-      </button>
     </div>
   );
 }
@@ -561,13 +604,15 @@ function RecordingStep({
   prompt,
   buttonLabel,
   onContinue,
+  onRecorded,
 }: {
   title: string;
   prompt: string;
   buttonLabel: string;
   onContinue: () => void;
+  onRecorded?: (blob: Blob) => void;
 }) {
-  const { recording, audioUrl, unsupported, start, stop } = useRecorder();
+  const { recording, audioUrl, unsupported, start, stop } = useRecorder(onRecorded);
   const [playedBack, setPlayedBack] = useState(false);
   const audioRef = useRef<HTMLAudioElement>(null);
 
@@ -626,6 +671,55 @@ function RecordingStep({
   );
 }
 
+/** Friendly kid-facing confirm before a skip discards a step permanently. */
+function SkipConfirmModal({
+  message,
+  onCancel,
+  onConfirm,
+}: {
+  message: string;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-6"
+      onClick={onCancel}
+    >
+      <motion.div
+        initial={{ scale: 0.92, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.92, opacity: 0 }}
+        onClick={(e) => e.stopPropagation()}
+        className="card-base p-5 flex flex-col gap-4 max-w-xs w-full"
+      >
+        <p className="font-heading font-extrabold text-base text-dark text-center">
+          Sure? You'll miss {message}
+        </p>
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="flex-1 py-3 rounded-2xl bg-gray-100 font-heading font-bold text-sm text-gray-500"
+          >
+            Stay
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            className="flex-1 py-3 rounded-2xl bg-primary font-heading font-bold text-sm text-white"
+          >
+            Skip it
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
 /* ─────────────────────────── page shell ──────────────────────────── */
 
 export default function DailyPage() {
@@ -635,14 +729,11 @@ export default function DailyPage() {
   const [phase, setPhase] = useState<Phase>("loading");
   const [ageBand, setAgeBand] = useState<AgeBand>("11-15");
   const [error, setError] = useState<string | null>(null);
+  const [weatherAtSnap, setWeatherAtSnap] = useState<string | null>(null);
 
-  // Snap / Confirm state
+  // Snap / AR Confirm state
   const [photoDataUrl, setPhotoDataUrl] = useState<string | null>(null);
-  const [label, setLabel] = useState<string | null>(null);
-  const [alternates, setAlternates] = useState<string[]>([]);
-  const [neighbourWords, setNeighbourWords] = useState<NeighbourWord[]>([]);
-  const [showAlternates, setShowAlternates] = useState(false);
-  const [customLabel, setCustomLabel] = useState("");
+  const [snapObjects, setSnapObjects] = useState<SnapObject[]>([]);
 
   // Session word set
   const [words, setWords] = useState<SessionWord[]>([]);
@@ -651,11 +742,64 @@ export default function DailyPage() {
   // Flexible-step machine
   const [flexQueue, setFlexQueue] = useState<FlexibleStepId[]>(ALL_FLEX_STEPS);
   const [stepsDone, setStepsDone] = useState(0);
+  const [pronScore, setPronScore] = useState<number | undefined>();
+  const [voiceClipId, setVoiceClipId] = useState<string | undefined>();
+
+  // Skip confirmation
+  const [pendingSkip, setPendingSkip] = useState<"flex" | "checkpoint" | null>(null);
 
   const dayWord = words.find((w) => w.id === seedWordId) ?? words[0] ?? null;
   const { N } = sizingForBand(ageBand);
   const cycleWords = words.slice(0, N);
   const totalSteps = 2 + ALL_FLEX_STEPS.length + 2; // snap+confirm, flex, pron+2nd take
+
+  const capturePronunciation = useCallback((audioBlob: Blob, word: string) => {
+    void (async () => {
+      let score: number | undefined;
+      try {
+        const assessmentResponse = await fetch("/api/pronunciation/assess", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            referenceText: word,
+            audioData: await blobToWavBase64(audioBlob),
+          }),
+        });
+        if (assessmentResponse.ok) {
+          const assessment = (await assessmentResponse.json()) as {
+            pronunciationScore?: number;
+            accuracyScore?: number;
+          };
+          if (
+            Number.isFinite(assessment.pronunciationScore) &&
+            Number.isFinite(assessment.accuracyScore)
+          ) {
+            score = Math.round((assessment.pronunciationScore! + assessment.accuracyScore!) / 2);
+            setPronScore(score);
+          }
+        }
+      } catch (error) {
+        console.warn("[daily] pronunciation assessment failed", error);
+      }
+
+      try {
+        const uploadResponse = await fetch("/api/voice-clip", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            audioBase64: await blobToBase64(audioBlob),
+            word,
+            ...(score === undefined ? {} : { pronScore: score }),
+          }),
+        });
+        if (!uploadResponse.ok) throw new Error("Voice clip upload failed");
+        const clip = (await uploadResponse.json()) as { id?: string };
+        if (typeof clip.id === "string") setVoiceClipId(clip.id);
+      } catch (error) {
+        console.warn("[daily] voice clip upload failed", error);
+      }
+    })();
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -663,16 +807,60 @@ export default function DailyPage() {
       .then((r) => (r.ok ? r.json() : null))
       .then((u) => {
         if (cancelled) return;
-        setAgeBand(normalizeBand(u?.ageBand, u?.age));
-        setPhase("snap");
+        const band = normalizeBand(u?.ageBand, u?.age);
+        setAgeBand(band);
+
+        const saved = loadProgress();
+        if (saved && RESUMABLE_PHASES.includes(saved.phase)) {
+          setPhotoDataUrl(saved.photoThumb);
+          setWords(saved.words);
+          setSeedWordId(saved.seedWordId);
+          setFlexQueue(saved.flexQueue);
+          setStepsDone(saved.stepsDone);
+          setAgeBand(saved.ageBand);
+          setWeatherAtSnap(saved.weatherAtSnap);
+          setPhase(saved.phase);
+        } else {
+          setPhase("snap");
+        }
       })
       .catch(() => {
         if (!cancelled) setPhase("snap");
       });
+
+    // Current world weather, best-effort — feeds Deck.weatherAtSnap and
+    // tints the Peak B settle beat. Never blocks the loop if it fails.
+    fetch("/api/world/state")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!cancelled && typeof d?.weather === "string") setWeatherAtSnap(d.weather);
+      })
+      .catch(() => {});
+
     return () => {
       cancelled = true;
     };
   }, []);
+
+  /* ── Exit: save progress (if mid-loop) and return home ── */
+  const exitLoop = useCallback(async () => {
+    if (RESUMABLE_PHASES.includes(phase)) {
+      const photoThumb = photoDataUrl ? await compressToThumb(photoDataUrl) : null;
+      saveProgress({
+        phase,
+        photoThumb,
+        words,
+        seedWordId,
+        flexQueue,
+        stepsDone,
+        ageBand,
+        weatherAtSnap,
+      });
+    } else {
+      clearProgress();
+    }
+    router.push("/");
+  }, [phase, photoDataUrl, words, seedWordId, flexQueue, stepsDone, ageBand, weatherAtSnap, router]);
 
   /* ── Snap ── */
   const handlePhoto = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -685,19 +873,17 @@ export default function DailyPage() {
       setPhase("identifying");
       setError(null);
       try {
-        const res = await fetch("/api/snap/neighbours", {
+        const res = await fetch("/api/snap", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ imageBase64: dataUrl.split(",")[1] }),
+          body: JSON.stringify({ image: dataUrl.split(",")[1] }),
         });
         if (!res.ok) throw new Error("identify failed");
         const data = await res.json();
-        setLabel(data.label);
-        setAlternates(data.alternates ?? []);
-        setNeighbourWords(data.words ?? []);
+        setSnapObjects(Array.isArray(data.objects) ? data.objects : []);
         setPhase("confirm");
       } catch {
-        setError("Couldn't see the object clearly — try another photo.");
+        setError("Couldn't see anything clearly — try another photo.");
         setPhotoDataUrl(null);
         setPhase("snap");
       }
@@ -705,78 +891,74 @@ export default function DailyPage() {
     reader.readAsDataURL(file);
   }, []);
 
-  /* ── Confirm ── */
-  const regenerateFor = useCallback(async (newLabel: string) => {
-    setPhase("identifying");
-    setError(null);
-    try {
-      const res = await fetch("/api/snap/neighbours", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ label: newLabel }),
-      });
-      if (!res.ok) throw new Error("neighbours failed");
-      const data = await res.json();
-      setLabel(data.label);
-      setNeighbourWords(data.words ?? []);
-      setShowAlternates(false);
-      setPhase("confirm");
-    } catch {
-      setError("Hmm, that word tangled — try once more.");
-      setPhase("confirm");
-    }
-  }, []);
+  /* ── AR Confirm: kid taps pills to hear + keep, then confirms the set ── */
+  const confirmObjects = useCallback(
+    async (kept: SnapObject[]) => {
+      if (kept.length === 0) return;
+      setPhase("seeding");
+      setError(null);
+      try {
+        const photoThumb = photoDataUrl ? await compressToThumb(photoDataUrl) : null;
+        const [seed0, ...rest] = kept;
+        const [seedRes, reviewRes] = await Promise.all([
+          fetch("/api/daily/seed", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              label: seed0.word,
+              labelThai: seed0.thai,
+              labelCropBox: seed0.cropBox,
+              words: rest.map((o) => ({
+                word: o.word,
+                thai: o.thai,
+                because: o.because,
+                cropBox: o.cropBox,
+              })),
+              photoThumb,
+              weatherAtSnap,
+            }),
+          }),
+          fetch("/api/daily/review-queue"),
+        ]);
+        if (!seedRes.ok) throw new Error("seed failed");
+        const seed = await seedRes.json();
+        const review = reviewRes.ok ? await reviewRes.json() : { words: [] };
 
-  const confirmLabel = useCallback(async () => {
-    if (!label) return;
-    setPhase("seeding");
-    setError(null);
-    try {
-      const photoThumb = photoDataUrl ? await compressToThumb(photoDataUrl) : null;
-      const [seedRes, reviewRes] = await Promise.all([
-        fetch("/api/daily/seed", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ label, words: neighbourWords, photoThumb }),
-        }),
-        fetch("/api/daily/review-queue"),
-      ]);
-      if (!seedRes.ok) throw new Error("seed failed");
-      const seed = await seedRes.json();
-      const review = reviewRes.ok ? await reviewRes.json() : { words: [] };
-
-      const fresh: SessionWord[] = (seed.words ?? []).map(
-        (w: {
-          id: string;
-          word: string;
-          translation: string;
-          becauseText: string | null;
-          photoUrl: string | null;
-        }) => ({ ...w, isReview: false })
-      );
-      const reviews: SessionWord[] = (review.words ?? []).map(
-        (w: {
-          id: string;
-          word: string;
-          translation: string;
-          becauseText: string | null;
-          photoUrl: string | null;
-        }) => ({ ...w, isReview: true })
-      );
-      setWords([...fresh, ...reviews]);
-      setSeedWordId(seed.seedWordId);
-      setStepsDone(2);
-      setPhase("path");
-    } catch {
-      setError("Couldn't save today's words — check your connection.");
-      setPhase("confirm");
-    }
-  }, [label, neighbourWords, photoDataUrl]);
+        const fresh: SessionWord[] = (seed.words ?? []).map(
+          (w: {
+            id: string;
+            word: string;
+            translation: string;
+            becauseText: string | null;
+            photoUrl: string | null;
+          }) => ({ ...w, isReview: false })
+        );
+        const reviews: SessionWord[] = (review.words ?? []).map(
+          (w: {
+            id: string;
+            word: string;
+            translation: string;
+            becauseText: string | null;
+            photoUrl: string | null;
+          }) => ({ ...w, isReview: true })
+        );
+        setWords([...fresh, ...reviews]);
+        setSeedWordId(seed.seedWordId);
+        setStepsDone(2);
+        setPhase("path");
+      } catch {
+        setError("Couldn't save today's words — check your connection.");
+        setPhase("confirm");
+      }
+    },
+    [photoDataUrl, weatherAtSnap]
+  );
 
   /* ── Flexible steps ── */
-  const finishFlexStep = useCallback(() => {
+  const finishFlexStep = useCallback((stepId: FlexibleStepId) => {
     setFlexQueue((q) => q.slice(1));
     setStepsDone((d) => d + 1);
+    reportStep("step_complete", STEP_LABEL[stepId]);
   }, []);
 
   useEffect(() => {
@@ -802,6 +984,10 @@ export default function DailyPage() {
         sentenceText: dayWord ? `I found a ${dayWord.word} today.` : null,
       }),
     }).catch(() => {});
+    reportStep("step_complete", "Second Take");
+    // The ceremonial beats from here on aren't worth resuming into —
+    // the day's real work is already saved server-side.
+    clearProgress();
     setStepsDone(totalSteps);
     setPhase("peak_a");
   }, [seedWordId, dayWord, totalSteps]);
@@ -812,23 +998,49 @@ export default function DailyPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ wordId: seedWordId }),
     }).catch(() => {});
+    reportStep(
+      "loop_complete",
+      undefined,
+      cycleWords.map((w) => w.word),
+      {
+        stepsDone,
+        totalSteps,
+        ...(pronScore === undefined ? {} : { pronScore }),
+        ...(voiceClipId === undefined ? {} : { voiceClipId }),
+      }
+    );
     setPhase("peak_b");
-  }, [seedWordId]);
+  }, [seedWordId, cycleWords, pronScore, stepsDone, totalSteps, voiceClipId]);
 
   /* ── render ── */
   const currentStep = flexQueue[0];
   const progress = Math.min(100, Math.round((stepsDone / totalSteps) * 100));
+  // Exit only matters (and only resumes cleanly) mid-loop — once the
+  // ceremonial peak beats start, there's nothing left worth saving.
+  const showExit = RESUMABLE_PHASES.includes(phase);
 
   return (
     <div className="py-4 space-y-5">
       {/* Session progress — position only, never a score */}
       {phase !== "loading" && (
-        <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-          <motion.div
-            className="h-full rounded-full bg-primary"
-            animate={{ width: `${progress}%` }}
-            transition={{ duration: 0.4, ease: "easeOut" }}
-          />
+        <div className="flex items-center gap-3">
+          <div className="h-2 flex-1 bg-gray-100 rounded-full overflow-hidden">
+            <motion.div
+              className="h-full rounded-full bg-primary"
+              animate={{ width: `${progress}%` }}
+              transition={{ duration: 0.4, ease: "easeOut" }}
+            />
+          </div>
+          {showExit && (
+            <button
+              type="button"
+              onClick={exitLoop}
+              aria-label="Save and exit"
+              className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0"
+            >
+              <X className="w-4 h-4 text-gray-400" />
+            </button>
+          )}
         </div>
       )}
 
@@ -885,82 +1097,15 @@ export default function DailyPage() {
         </div>
       )}
 
-      {/* 2 — Confirm */}
-      {phase === "confirm" && label && (
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="card-base overflow-hidden"
-        >
-          {photoDataUrl && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={photoDataUrl}
-              alt="your find"
-              className="w-full aspect-[4/3] object-cover"
-            />
-          )}
-          <div className="p-5 flex flex-col gap-4">
-            <p className="font-heading font-extrabold text-lg text-dark text-center">
-              Is it a <span className="text-primary">{label}</span>?
-            </p>
-            {!showAlternates ? (
-              <div className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => setShowAlternates(true)}
-                  className="flex-1 py-3 rounded-2xl bg-gray-100 font-heading font-bold text-sm text-gray-500 flex items-center justify-center gap-1"
-                >
-                  <X className="w-4 h-4" /> No
-                </button>
-                <button
-                  type="button"
-                  onClick={confirmLabel}
-                  className="flex-1 py-3 rounded-2xl bg-primary font-heading font-bold text-sm text-white flex items-center justify-center gap-1"
-                >
-                  <Check className="w-4 h-4" /> Yes!
-                </button>
-              </div>
-            ) : (
-              <div className="flex flex-col gap-2">
-                {alternates.map((alt) => (
-                  <button
-                    key={alt}
-                    type="button"
-                    onClick={() => regenerateFor(alt)}
-                    className="w-full py-3 rounded-2xl bg-gray-50 font-heading font-bold text-sm text-dark"
-                  >
-                    It's a {alt}
-                  </button>
-                ))}
-                <div className="flex gap-2 mt-1">
-                  <input
-                    value={customLabel}
-                    onChange={(e) => setCustomLabel(e.target.value)}
-                    placeholder="Type what it really is…"
-                    className="flex-1 px-4 py-3 rounded-2xl border-2 border-gray-100 font-body text-sm focus:border-primary focus:outline-none"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => customLabel.trim() && regenerateFor(customLabel.trim())}
-                    disabled={!customLabel.trim()}
-                    className="px-4 rounded-2xl bg-primary text-white font-heading font-bold text-sm disabled:opacity-40"
-                  >
-                    Go
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        </motion.div>
+      {/* 2 — AR Confirm: frozen photo, Google-Lens style pill labels */}
+      {phase === "confirm" && photoDataUrl && snapObjects.length > 0 && (
+        <ARSnapConfirm photoUrl={photoDataUrl} objects={snapObjects} onConfirm={confirmObjects} />
       )}
 
       {phase === "seeding" && (
         <div className="card-base p-8 flex flex-col items-center gap-3">
           <Loader2 className="w-8 h-8 text-primary animate-spin" />
-          <p className="font-body text-sm text-gray-500">
-            Gathering words around your {label}…
-          </p>
+          <p className="font-body text-sm text-gray-500">Gathering today's words…</p>
         </div>
       )}
 
@@ -987,7 +1132,7 @@ export default function DailyPage() {
             </p>
             <button
               type="button"
-              onClick={finishFlexStep}
+              onClick={() => setPendingSkip("flex")}
               className="font-body text-xs text-gray-400 underline underline-offset-4 decoration-dotted"
             >
               skip this
@@ -1005,24 +1150,21 @@ export default function DailyPage() {
                 <ListenStep
                   words={cycleWords}
                   replays={listenReplaysForBand(ageBand)}
-                  onDone={finishFlexStep}
+                  onDone={() => finishFlexStep("listen")}
                 />
               )}
               {currentStep === "flashcard" && (
-                <FlashcardStep words={cycleWords} onDone={finishFlexStep} />
-              )}
-              {currentStep === "sensory_tags" && (
-                <SensoryStep word={dayWord} onDone={finishFlexStep} />
+                <FlashcardStep words={cycleWords} onDone={() => finishFlexStep("flashcard")} />
               )}
               {currentStep === "read_write" && (
                 <ReadWriteStep
                   word={dayWord}
                   ageBand={ageBand}
-                  onDone={finishFlexStep}
+                  onDone={() => finishFlexStep("read_write")}
                 />
               )}
               {currentStep === "dictation" && (
-                <DictationStep words={cycleWords} onDone={finishFlexStep} />
+                <DictationStep words={cycleWords} onDone={() => finishFlexStep("dictation")} />
               )}
             </motion.div>
           </AnimatePresence>
@@ -1030,13 +1172,37 @@ export default function DailyPage() {
           {/* Checkpoint is reachable at any time */}
           <button
             type="button"
-            onClick={gotoCheckpoint}
+            onClick={() => setPendingSkip("checkpoint")}
             className="w-full py-2 font-body text-xs text-gray-400 underline underline-offset-4 decoration-dotted"
           >
             head to the clearing (finish today)
           </button>
         </div>
       )}
+
+      {/* Skip confirmation — friendly, never silent */}
+      <AnimatePresence>
+        {pendingSkip === "flex" && currentStep && (
+          <SkipConfirmModal
+            message={STEP_LABEL[currentStep]}
+            onCancel={() => setPendingSkip(null)}
+            onConfirm={() => {
+              setPendingSkip(null);
+              finishFlexStep(currentStep);
+            }}
+          />
+        )}
+        {pendingSkip === "checkpoint" && (
+          <SkipConfirmModal
+            message="the rest of today's steps"
+            onCancel={() => setPendingSkip(null)}
+            onConfirm={() => {
+              setPendingSkip(null);
+              gotoCheckpoint();
+            }}
+          />
+        )}
+      </AnimatePresence>
 
       {/* 5 — Pronunciation (always right before Second Take) */}
       {phase === "pronunciation" && dayWord && (
@@ -1045,6 +1211,7 @@ export default function DailyPage() {
           prompt="Record yourself saying today's word, then hear it back once. Nothing is graded — just you and the word."
           buttonLabel="Ready for the last step"
           onContinue={() => setPhase("cue")}
+          onRecorded={(blob) => capturePronunciation(blob, dayWord.word)}
         />
       )}
 
@@ -1098,6 +1265,7 @@ export default function DailyPage() {
         <PeakB
           photoUrl={photoDataUrl ?? dayWord?.photoUrl ?? null}
           word={dayWord?.word ?? null}
+          weather={(weatherAtSnap as Weather) ?? "clear"}
           variant="done"
           onDone={() => router.push("/")}
         />

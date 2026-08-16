@@ -1,8 +1,8 @@
 "use client";
 
 import { motion } from "framer-motion";
-import Silhouette from "@/components/world/Silhouette";
 import { ShimmerGlow } from "@/components/world/ShimmerOverlay";
+import CropThumb from "./CropThumb";
 import type { GroveWord } from "./types";
 
 interface GroveCardProps {
@@ -12,8 +12,10 @@ interface GroveCardProps {
 }
 
 /**
- * One promoted word in the Grove grid. Photo if it has one, otherwise its
- * silhouette. No numbers, no progress — just the word, replayable anytime.
+ * One promoted word in the Journal grid: a crop of the object from its
+ * original photo (falls back to the full photo, then a silhouette, when
+ * no cropBox has been recorded yet). No numbers, no progress — just the
+ * word, replayable anytime.
  */
 export default function GroveCard({ word, shimmer, onOpen }: GroveCardProps) {
   return (
@@ -26,20 +28,15 @@ export default function GroveCard({ word, shimmer, onOpen }: GroveCardProps) {
     >
       <div className="relative w-full aspect-square bg-primary/5 flex items-center justify-center overflow-hidden">
         {shimmer && <ShimmerGlow size={90} />}
-        {word.photoUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={word.photoUrl}
-            alt={word.word}
-            className="w-full h-full object-cover"
-          />
-        ) : (
-          <Silhouette
-            bodyPlan={word.bodyPlan}
-            size={word.sensorySize}
-            texture={word.sensoryTextures?.[0]}
-          />
-        )}
+        <CropThumb
+          photoUrl={word.photoUrl}
+          cropBox={word.cropBox}
+          word={word.word}
+          bodyPlan={word.bodyPlan}
+          sensorySize={word.sensorySize}
+          texture={word.sensoryTextures?.[0]}
+          className="w-full h-full"
+        />
       </div>
       <div className="p-2.5">
         <p className="font-heading font-extrabold text-sm text-dark truncate">

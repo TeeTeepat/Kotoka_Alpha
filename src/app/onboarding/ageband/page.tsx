@@ -38,20 +38,16 @@ export default function AgeBandOnboardingPage() {
     if (!selected || saving) return;
     setSaving(true);
     try {
+      // Final onboarding step — kids-only flow, no CEFR test.
       await fetch("/api/user", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ageBand: selected }),
+        body: JSON.stringify({ ageBand: selected, isOnboarded: true }),
       });
     } finally {
       setSaving(false);
     }
-    const savedLevel = localStorage.getItem("kotoka_cefr_level");
-    if (!savedLevel) {
-      router.push("/onboarding/cefr");
-    } else {
-      router.push("/");
-    }
+    router.push("/");
     router.refresh();
   };
 

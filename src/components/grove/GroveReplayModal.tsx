@@ -3,9 +3,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Volume2, VolumeX, X } from "lucide-react";
-import Silhouette from "@/components/world/Silhouette";
+import CropThumb from "./CropThumb";
 import { resolveAmbientUrl } from "@/lib/ambientSounds";
 import { getTimeOfDay, getWorldTint } from "@/lib/compositing";
+import { useLocale } from "@/lib/i18n";
 import type { GroveWord } from "./types";
 
 interface GroveReplayModalProps {
@@ -14,13 +15,26 @@ interface GroveReplayModalProps {
 }
 
 /**
- * Replay one promoted word: its photo card tinted by the current time of
- * day, its "because…" line, and its ambient sound if it has one. Outside
- * the session loop — no grading, no progress, close whenever.
+ * Word detail: a bigger crop of the object (falling back to the full
+ * photo), tinted by the current time of day, its word/translation, a
+ * pronounce button, its "because…" line, and scene/atmosphere info. Also
+ * the world section's replay surface — tap a bloomed collectible to open
+ * this same card. Outside the session loop — no grading, no progress,
+ * close whenever.
  */
 export default function GroveReplayModal({ word, onClose }: GroveReplayModalProps) {
+  const { t } = useLocale();
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [playing, setPlaying] = useState(false);
+
+  const speakWord = () => {
+    if (!word || typeof window === "undefined" || !window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(word.word);
+    utterance.lang = "en-US";
+    utterance.rate = 0.9;
+    window.speechSynthesis.speak(utterance);
+  };
 
   const ambientUrl = useMemo(
     () => resolveAmbientUrl(word?.ambientSoundUrl ?? word?.deckAmbientSound),
@@ -78,22 +92,17 @@ export default function GroveReplayModal({ word, onClose }: GroveReplayModalProp
             className="relative w-full max-w-sm rounded-3xl bg-white shadow-xl overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Photo card, tinted by the current time of day */}
+            {/* Bigger crop of the object, tinted by the current time of day */}
             <div className="relative w-full aspect-[4/3] bg-primary/5 flex items-center justify-center overflow-hidden">
-              {word.photoUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={word.photoUrl}
-                  alt={word.word}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <Silhouette
-                  bodyPlan={word.bodyPlan}
-                  size={word.sensorySize}
-                  texture={word.sensoryTextures?.[0]}
-                />
-              )}
+              <CropThumb
+                photoUrl={word.photoUrl}
+                cropBox={word.cropBox}
+                word={word.word}
+                bodyPlan={word.bodyPlan}
+                sensorySize={word.sensorySize}
+                texture={word.sensoryTextures?.[0]}
+                className="w-full h-full"
+              />
               {/* Time-of-day wash */}
               <div
                 className="absolute inset-0 pointer-events-none mix-blend-soft-light"
@@ -129,9 +138,19 @@ export default function GroveReplayModal({ word, onClose }: GroveReplayModalProp
             </div>
 
             <div className="p-5">
-              <p className="font-heading font-extrabold text-2xl text-dark">
-                {word.word}
-              </p>
+              <div className="flex items-center gap-2">
+                <p className="font-heading font-extrabold text-2xl text-dark">
+                  {word.word}
+                </p>
+                <button
+                  type="button"
+                  onClick={speakWord}
+                  aria-label={t.journalPronounce}
+                  className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0"
+                >
+                  <Volume2 className="w-4 h-4 text-primary" />
+                </button>
+              </div>
               {word.translation && (
                 <p className="font-body text-sm text-gray-400 mt-0.5">
                   {word.translation}
@@ -142,10 +161,24 @@ export default function GroveReplayModal({ word, onClose }: GroveReplayModalProp
                   {word.becauseText}
                 </p>
               )}
-              {word.locationName && (
-                <p className="font-body text-xs text-gray-400 mt-3">
-                  {word.locationName}
-                </p>
+              {(word.sceneDesc || word.topic || word.locationName) && (
+                <div className="mt-3 pt-3 border-t border-card-border space-y-1">
+                  {word.sceneDesc && (
+                    <p className="font-body text-xs text-gray-400">
+                      <span className="text-dark/60 font-medium">{t.journalScene}: </span>
+                      {word.sceneDesc}
+                    </p>
+                  )}
+                  {word.topic && (
+                    <p className="font-body text-xs text-gray-400">
+                      <span className="text-dark/60 font-medium">{t.journalAtmosphere}: </span>
+                      {word.topic}
+                    </p>
+                  )}
+                  {word.locationName && (
+                    <p className="font-body text-xs text-gray-400">{word.locationName}</p>
+                  )}
+                </div>
               )}
             </div>
           </motion.div>

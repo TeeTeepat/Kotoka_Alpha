@@ -49,6 +49,7 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 logs/
+storage/
 
 # ========================
 # OS artifacts

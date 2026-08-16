@@ -100,36 +100,47 @@ Speak exclusively in ${learningLanguage} at a natural native level. Their known 
 Introduce new words naturally in context. Correct grammar errors briefly and continue the conversation. Never switch to ${nativeLanguage}.`;
 }
 
+/** One AR-pinned object detected in a Living Sandbox snap. */
+export interface SnapObject {
+  word: string;
+  thai: string;
+  because: string;
+  /** Normalized bounding box, 0-1 relative to image width/height. */
+  cropBox: { x: number; y: number; w: number; h: number };
+}
+
+/**
+ * AR snap prompt — the Living Sandbox daily loop's only vision call.
+ * Requests 4-5 CONCRETE, visible objects (never abstract/background words),
+ * each with a normalized bounding box so the client can pin a Google-Lens
+ * style pill label directly over the object in the frozen photo.
+ */
 export function snapPrompt(
   nativeLanguage = "Thai",
   learningLanguage = "English",
   cefrLevel: "A1" | "A2" | "B1" | "B2" | "C1" | "C2" | null = null,
 ): string {
   const cefrLine = cefrLevel
-    ? `Calibrate difficulty for CEFR level ${cefrLevel}. Prefer words appropriate to that level; include 1-2 slightly above for stretch.`
+    ? `Calibrate difficulty for CEFR level ${cefrLevel}. Prefer words appropriate to that level.`
     : `Target mixed difficulty (beginner-intermediate).`;
 
-  return `You are Koko, a vocabulary learning AI.
-Analyze this image and return EXACTLY 10 ${learningLanguage} vocabulary words that are:
-- Visible in or contextually relevant to this scene
-- Useful for adult learners
-- ${cefrLine}
-
+  return `You are Koko, a vocabulary learning AI for a Living Sandbox photo game.
+Analyze this image and find up to 4 to 5 things a child could physically point at and pick up or touch — a real animal, object, tool, food, piece of furniture, article of clothing, etc.
+Never return: text, numbers, letters, words, arrows, icons, logos, or any symbol/graphic printed or displayed on a surface (a label, a card, a screen, a sign) — those are not the object, they are marks on an object. Never return abstract ideas, colors alone, or the background/scene as a whole.
+If the photo genuinely contains fewer than 4 such physical objects, return only the ones that are real — it is far better to return 1-3 honest objects than to pad the list with text or symbols. ${cefrLine}
 The user speaks ${nativeLanguage} natively and is learning ${learningLanguage}.
 
-Label each word's natural part of speech. Do NOT force a distribution — if the scene yields 6 nouns and 4 verbs, return that.
+For each object, give its precise bounding box as {x, y, w, h}, each a number from 0 to 1, where x/y is the top-left corner relative to image width/height and w/h is its size relative to image width/height.
 
-Return JSON (no markdown):
+Return JSON only, no markdown:
 {
   "scene": "Short scene description in ${nativeLanguage} (max 4 words)",
-  "vocabulary": [
+  "objects": [
     {
-      "word": "${learningLanguage} word",
-      "translation": "${nativeLanguage} translation of the word",
-      "example": "Natural ${learningLanguage} sentence using the word",
-      "difficulty": "beginner|intermediate|advanced",
-      "phonetic": "IPA notation",
-      "partOfSpeech": "noun|verb|adjective|adverb|phrase|other"
+      "word": "${learningLanguage} word for the object (lowercase, singular noun)",
+      "thai": "${nativeLanguage} translation",
+      "because": "One short, warm ${learningLanguage} sentence connecting the word to this photo",
+      "cropBox": { "x": 0.0, "y": 0.0, "w": 0.0, "h": 0.0 }
     }
   ]
 }`;

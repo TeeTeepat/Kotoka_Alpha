@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Nunito, DM_Sans } from "next/font/google";
 import "./globals.css";
-import StatusBar from "@/components/StatusBar";
+import TopBar from "@/components/TopBar";
 import BottomNav from "@/components/BottomNav";
 import SplashScreen from "@/components/SplashScreen";
 import Providers from "@/components/Providers";
@@ -44,8 +44,8 @@ export default function RootLayout({
       <body className="font-body bg-background min-h-screen">
         <Providers>
           <SplashScreen />
-          <StatusBar />
-          <main className="pt-14 pb-20 min-h-screen">
+          <TopBar />
+          <main className="pt-14 pb-24 min-h-screen">
             <div className="max-w-[480px] mx-auto px-4">{children}</div>
           </main>
           <BottomNav />

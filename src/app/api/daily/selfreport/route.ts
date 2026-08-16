@@ -54,6 +54,13 @@ export async function POST(req: Request) {
       },
     });
 
+    // Journal the self-report so review accuracy is computable (parent report).
+    await prisma.journalEntry
+      .create({
+        data: { userId, wordId: word.id, kind: "self_report", payload: { gotIt } },
+      })
+      .catch(() => {});
+
     return NextResponse.json({ ok: true });
   } catch (err) {
     console.error("[POST /api/daily/selfreport]", err);

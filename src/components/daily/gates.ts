@@ -2,12 +2,7 @@
 // Pure data + pure functions — the daily engine consumes `orderFlexibleSteps`
 // to reorder its flexible-step queue after a gate is chosen.
 
-export type FlexibleStepId =
-  | "sensory_tags"
-  | "listen"
-  | "flashcard"
-  | "read_write"
-  | "dictation";
+export type FlexibleStepId = "listen" | "flashcard" | "read_write" | "dictation";
 
 export type GateId = "sound" | "word" | "quiet";
 
@@ -20,8 +15,8 @@ export function isGateId(value: unknown): value is GateId {
 /** The two flexible steps each gate routes the child through first, in order. */
 export const GATE_STEPS: Record<GateId, readonly [FlexibleStepId, FlexibleStepId]> = {
   sound: ["listen", "flashcard"],
-  word: ["read_write", "sensory_tags"],
-  quiet: ["dictation", "sensory_tags"],
+  word: ["read_write", "flashcard"],
+  quiet: ["dictation", "read_write"],
 };
 
 /**
@@ -62,12 +57,12 @@ export const GATE_COPY: Record<AgeBand, Record<GateId, GateCopy>> = {
     word: {
       name: "The Letter Garden",
       tagline: "Words grow on the vines here",
-      leadsTo: "Reading, writing and touch-words first",
+      leadsTo: "Reading, writing and flip-cards first",
     },
     quiet: {
       name: "The Moss Door",
       tagline: "Shhh… soft and slow",
-      leadsTo: "Quiet typing and touch-words first",
+      leadsTo: "Quiet typing and reading first",
     },
   },
   "11-15": {
@@ -79,12 +74,12 @@ export const GATE_COPY: Record<AgeBand, Record<GateId, GateCopy>> = {
     word: {
       name: "Word Path",
       tagline: "Start with the page",
-      leadsTo: "Read/write, then sensory tags",
+      leadsTo: "Read/write, then flashcards",
     },
     quiet: {
       name: "Quiet Path",
       tagline: "Start without a sound",
-      leadsTo: "Dictation, then sensory tags",
+      leadsTo: "Dictation, then read/write",
     },
   },
 };

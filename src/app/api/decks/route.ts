@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
     const {
       sceneDesc, emotionScore, atmosphere, ambientSound, note,
       colorPalette, vocabulary, locationLat, locationLng, locationName,
-      imageBase64,
+      imageBase64, weatherAtSnap,
     } = body;
 
     if (!sceneDesc || !vocabulary?.length) {
@@ -50,17 +50,19 @@ export async function POST(req: NextRequest) {
         locationLng: locationLng ?? null,
         locationName: locationName ?? null,
         imageBase64: imageBase64 ?? null,
+        weatherAtSnap: typeof weatherAtSnap === "string" && weatherAtSnap ? weatherAtSnap : null,
         words: {
           // FIX 7: stagger nextReviewAt by 2 min per word so SM-2 doesn't batch them
           create: vocabulary.map((v: {
             word: string; translation: string; example: string;
-            difficulty: string; phonetic: string;
+            difficulty: string; phonetic: string; cropBox?: unknown;
           }, i: number) => ({
             word: v.word,
             translation: v.translation,
             example: v.example,
             difficulty: v.difficulty,
             phonetic: v.phonetic,
+            cropBox: v.cropBox ?? undefined,
             nextReviewAt: new Date(Date.now() + i * 2 * 60 * 1000),
           })),
         },

@@ -6,6 +6,8 @@ interface SeedWordInput {
   word: string;
   thai: string;
   because: string;
+  /** AR pill position on the snap photo, normalized {x,y,w,h} 0-1. */
+  cropBox?: { x: number; y: number; w: number; h: number };
 }
 
 /**
@@ -24,9 +26,11 @@ export async function POST(req: Request) {
     const body = (await req.json().catch(() => null)) as {
       label?: unknown;
       labelThai?: unknown;
+      labelCropBox?: unknown;
       words?: unknown;
       photoThumb?: unknown;
       ambientSound?: unknown;
+      weatherAtSnap?: unknown;
     } | null;
 
     const label =
@@ -46,12 +50,8 @@ export async function POST(req: Request) {
         typeof (w as SeedWordInput).thai === "string" &&
         typeof (w as SeedWordInput).because === "string"
     );
-    if (neighbourWords.length === 0) {
-      return NextResponse.json(
-        { error: "words must be a non-empty array" },
-        { status: 400 }
-      );
-    }
+    // `words` may be empty — the AR snap step lets the child keep just the
+    // primary object and drop every other detected pill.
 
     const photoThumb =
       typeof body?.photoThumb === "string" && body.photoThumb ? body.photoThumb : null;
@@ -68,6 +68,10 @@ export async function POST(req: Request) {
       typeof body?.labelThai === "string" && body.labelThai.trim()
         ? body.labelThai.trim()
         : label;
+    const labelCropBox =
+      body?.labelCropBox && typeof body.labelCropBox === "object" ? body.labelCropBox : undefined;
+    const weatherAtSnap =
+      typeof body?.weatherAtSnap === "string" && body.weatherAtSnap ? body.weatherAtSnap : null;
 
     const deck = await prisma.deck.create({
       data: {
@@ -78,6 +82,7 @@ export async function POST(req: Request) {
         imageBase64: photoThumb?.startsWith("data:")
           ? photoThumb.split(",")[1] ?? null
           : photoThumb,
+        weatherAtSnap,
         words: {
           create: [
             {
@@ -88,6 +93,7 @@ export async function POST(req: Request) {
               phonetic: "",
               becauseText: `Because you found the ${label} yourself.`,
               photoUrl,
+              cropBox: labelCropBox,
             },
             ...neighbourWords.map((w) => ({
               word: w.word.trim(),
@@ -97,6 +103,7 @@ export async function POST(req: Request) {
               phonetic: "",
               becauseText: w.because.trim(),
               photoUrl,
+              cropBox: w.cropBox,
             })),
           ],
         },
@@ -109,6 +116,7 @@ export async function POST(req: Request) {
             translation: true,
             becauseText: true,
             photoUrl: true,
+            cropBox: true,
           },
         },
       },

@@ -145,6 +145,25 @@ export interface Strings {
   reviewAllCaughtUp: string;
   reviewDeckCount: string;
 
+  // ── Study tab (WS4) ─────────────────────────────────────
+  studyTitle: string;
+  studyWordsReady: string;
+  studyAllCaughtUp: string;
+  studyTapToReveal: string;
+  studyTapToFlipBack: string;
+  studyTranslation: string;
+  studyGotIt: string;
+  studyStillLearning: string;
+  studyEmptyTitle: string;
+  studyEmptySubtitle: string;
+  studyEmptyCta: string;
+  studyPathTitle: string;
+  studyPathSubtitle: string;
+  studyPathListen: string;
+  studyPathFlashcard: string;
+  studyPathReadWrite: string;
+  studyPathDictation: string;
+
   // ── Session ─────────────────────────────────────────────
   sessionTitle: string;
   sessionProgress: string;
@@ -349,6 +368,40 @@ export interface Strings {
   memoryMapUnlocked: string;
   memoryMapLocked: string;
   memoryMapReview: string;
+
+  // ── WS3: Journal ──────────────────────────────────────────
+  journalTitle: string;
+  journalSubtitle: string;
+  journalEmptyTitle: string;
+  journalEmptyCta: string;
+  journalPronounce: string;
+  journalScene: string;
+  journalAtmosphere: string;
+
+  // ── WS1: Shell (nav / dashboard / settings / onboarding) ──
+  navJournal: string;
+  navStudy: string;
+  navParent: string;
+  settingsSheetTitle: string;
+  settingsAccount: string;
+  settingsSound: string;
+  settingsSoundOn: string;
+  settingsSoundOff: string;
+  dashGreeting: string;
+  dashTodayProgress: string;
+  dashSnapNow: string;
+  dashRecentWords: string;
+  dashRecentWordsEmpty: string;
+  dashReviewNudgeTitle: string;
+  dashReviewNudgeCta: string;
+  dashMemoryMapTitle: string;
+  dashMemoryMapEmpty: string;
+  dashErrorTitle: string;
+  dashErrorRetry: string;
+  onboardNameTitle: string;
+  onboardNameSubtitle: string;
+  onboardNamePlaceholder: string;
+  onboardNameContinue: string;
 }
 
 const th: Strings = {
@@ -491,6 +544,25 @@ const th: Strings = {
   reviewWordsReady: "คำที่พร้อมทบทวน",
   reviewAllCaughtUp: "เยี่ยม! คุณทบทวนครบแล้ว",
   reviewDeckCount: "เด็ค",
+
+  // Study tab (WS4)
+  studyTitle: "เรียนรู้",
+  studyWordsReady: "คำที่พร้อมทบทวนวันนี้",
+  studyAllCaughtUp: "เยี่ยม! ทบทวนครบแล้ว",
+  studyTapToReveal: "แตะเพื่อดูคำแปล",
+  studyTapToFlipBack: "แตะเพื่อกลับด้าน",
+  studyTranslation: "คำแปล",
+  studyGotIt: "จำได้แล้ว",
+  studyStillLearning: "กำลังฝึกอยู่",
+  studyEmptyTitle: "ยังไม่มีคำให้ทบทวน",
+  studyEmptySubtitle: "ไปถ่ายรูปและเรียนคำใหม่กันเถอะ แล้วคำเหล่านั้นจะกลับมาให้ทบทวนที่นี่",
+  studyEmptyCta: "ไปที่กิจกรรมประจำวัน",
+  studyPathTitle: "เส้นทางกิจกรรม",
+  studyPathSubtitle: "ฝึกฝนคำศัพท์ผ่านกิจกรรมต่าง ๆ",
+  studyPathListen: "ฟัง",
+  studyPathFlashcard: "การ์ดคำศัพท์",
+  studyPathReadWrite: "อ่าน/เขียน",
+  studyPathDictation: "เขียนตามคำบอก",
 
   // Session
   sessionTitle: "เซสชันการเรียน",
@@ -696,6 +768,40 @@ const th: Strings = {
   memoryMapUnlocked: "ปลดล็อคแล้ว",
   memoryMapLocked: "ล็อคอยู่",
   memoryMapReview: "ทบทวน",
+
+  // ── WS3: Journal ──
+  journalTitle: "ไดอารี",
+  journalSubtitle: "โลกของคุณและคำศัพท์ที่เก็บไว้",
+  journalEmptyTitle: "ยังไม่มีอะไรในไดอารีของคุณ",
+  journalEmptyCta: "ถ่ายรูปสิ่งแรกของคุณ",
+  journalPronounce: "ออกเสียง",
+  journalScene: "ฉาก",
+  journalAtmosphere: "บรรยากาศ",
+
+  // WS1: Shell
+  navJournal: "บันทึก",
+  navStudy: "ทบทวน",
+  navParent: "ผู้ปกครอง",
+  settingsSheetTitle: "ตั้งค่า",
+  settingsAccount: "บัญชี",
+  settingsSound: "เสียง",
+  settingsSoundOn: "เปิดเสียง",
+  settingsSoundOff: "ปิดเสียง",
+  dashGreeting: "สวัสดี",
+  dashTodayProgress: "ความคืบหน้าวันนี้",
+  dashSnapNow: "ถ่ายภาพเลย",
+  dashRecentWords: "คำล่าสุด",
+  dashRecentWordsEmpty: "ยังไม่มีคำศัพท์ ลองถ่ายภาพดูสิ!",
+  dashReviewNudgeTitle: "ถึงเวลาทบทวนแล้ว",
+  dashReviewNudgeCta: "ทบทวนบัตรคำ",
+  dashMemoryMapTitle: "แผนที่ความจำ",
+  dashMemoryMapEmpty: "ยังไม่มีความทรงจำบนแผนที่",
+  dashErrorTitle: "โหลดข้อมูลไม่สำเร็จ",
+  dashErrorRetry: "ลองใหม่",
+  onboardNameTitle: "คุณชื่ออะไร?",
+  onboardNameSubtitle: "เลือกชื่อและตัวการ์ตูนของคุณ",
+  onboardNamePlaceholder: "ชื่อของคุณ",
+  onboardNameContinue: "ดำเนินการต่อ",
 };
 
 const en: Strings = {
@@ -838,6 +944,25 @@ const en: Strings = {
   reviewWordsReady: "Words Ready",
   reviewAllCaughtUp: "All caught up!",
   reviewDeckCount: "decks",
+
+  // Study tab (WS4)
+  studyTitle: "Study",
+  studyWordsReady: "words ready to review",
+  studyAllCaughtUp: "All caught up!",
+  studyTapToReveal: "Tap to reveal",
+  studyTapToFlipBack: "Tap to flip back",
+  studyTranslation: "Translation",
+  studyGotIt: "Got it",
+  studyStillLearning: "Still learning",
+  studyEmptyTitle: "No words to review yet",
+  studyEmptySubtitle: "Snap a photo and learn some new words — they'll come back here for review.",
+  studyEmptyCta: "Go to today's activities",
+  studyPathTitle: "Guided path",
+  studyPathSubtitle: "Practice your words with these activities",
+  studyPathListen: "Listen",
+  studyPathFlashcard: "Flashcard",
+  studyPathReadWrite: "Read/Write",
+  studyPathDictation: "Dictation",
 
   // Session
   sessionTitle: "Study Session",
@@ -1043,6 +1168,40 @@ const en: Strings = {
   memoryMapUnlocked: "Unlocked",
   memoryMapLocked: "Locked",
   memoryMapReview: "Review",
+
+  // ── WS3: Journal ──
+  journalTitle: "Journal",
+  journalSubtitle: "Your world and the words you've kept",
+  journalEmptyTitle: "Your journal is waiting for its first thing",
+  journalEmptyCta: "Snap your first thing",
+  journalPronounce: "Pronounce",
+  journalScene: "Scene",
+  journalAtmosphere: "Atmosphere",
+
+  // WS1: Shell
+  navJournal: "Journal",
+  navStudy: "Study",
+  navParent: "Parent",
+  settingsSheetTitle: "Settings",
+  settingsAccount: "Account",
+  settingsSound: "Sound",
+  settingsSoundOn: "Sound on",
+  settingsSoundOff: "Sound off",
+  dashGreeting: "Hello",
+  dashTodayProgress: "Today's progress",
+  dashSnapNow: "Snap now",
+  dashRecentWords: "Recent words",
+  dashRecentWordsEmpty: "No words yet — snap a photo to start!",
+  dashReviewNudgeTitle: "Time for a quick review",
+  dashReviewNudgeCta: "Review flashcards",
+  dashMemoryMapTitle: "Memory Map",
+  dashMemoryMapEmpty: "No memories on the map yet",
+  dashErrorTitle: "Couldn't load your data",
+  dashErrorRetry: "Retry",
+  onboardNameTitle: "What's your name?",
+  onboardNameSubtitle: "Pick your name and a buddy avatar",
+  onboardNamePlaceholder: "Your name",
+  onboardNameContinue: "Continue",
 };
 
 export const STRINGS: Record<Locale, Strings> = { th, en };

@@ -1,7 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
+import type { User } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { auth } from "@/auth";
 import { getRedis } from "@/lib/redis";
+
+// Cache and return only safe client-facing fields (exclude password, internal flags).
+// Shared by GET and PATCH so neither handler can accidentally leak the raw Prisma row.
+function toSafeUser(user: User) {
+  return {
+    id: user.id, name: user.name, email: user.email, image: user.image,
+    hearts: user.hearts, streak: user.streak, coins: user.coins,
+    streakFreezeActive: user.streakFreezeActive, targetLanguage: user.targetLanguage,
+    learningLanguage: user.learningLanguage, initialLearningLanguage: user.initialLearningLanguage,
+    cefrLevel: user.cefrLevel, isOnboarded: user.isOnboarded,
+    age: user.age, job: user.job, salary: user.salary,
+    // Existing users without an explicit band default to '11-15'
+    ageBand: user.ageBand === "7-10" || user.ageBand === "11-15" ? user.ageBand : "11-15",
+    completedNodes: user.completedNodes, timezone: user.timezone,
+    lastStreakDate: user.lastStreakDate, createdAt: user.createdAt,
+    // WS1: read-only best-effort signal for the dashboard's today-progress ring
+    checkpointDoneAt: user.checkpointDoneAt, peakBPendingAt: user.peakBPendingAt,
+  };
+}
 
 export async function GET() {
   const session = await auth();
@@ -22,19 +42,7 @@ export async function GET() {
     return NextResponse.json({ error: "User not found" }, { status: 401 });
   }
 
-  // Cache and return only safe client-facing fields (exclude password, internal flags)
-  const safeUser = {
-    id: user.id, name: user.name, email: user.email, image: user.image,
-    hearts: user.hearts, streak: user.streak, coins: user.coins,
-    streakFreezeActive: user.streakFreezeActive, targetLanguage: user.targetLanguage,
-    learningLanguage: user.learningLanguage, initialLearningLanguage: user.initialLearningLanguage,
-    cefrLevel: user.cefrLevel, isOnboarded: user.isOnboarded,
-    age: user.age, job: user.job, salary: user.salary,
-    // Existing users without an explicit band default to '11-15'
-    ageBand: user.ageBand === "7-10" || user.ageBand === "11-15" ? user.ageBand : "11-15",
-    completedNodes: user.completedNodes, timezone: user.timezone,
-    lastStreakDate: user.lastStreakDate, createdAt: user.createdAt,
-  };
+  const safeUser = toSafeUser(user);
   await redis.set(cacheKey, JSON.stringify(safeUser), 60);
   return NextResponse.json(safeUser);
 }
@@ -48,12 +56,13 @@ export async function PATCH(req: NextRequest) {
 
   const body = await req.json();
   // hearts is intentionally excluded — use POST /api/user/hearts for atomic deduction
+  // streak/coins are intentionally excluded — no client should set these arbitrarily;
+  // they're server-derived (streak logic, gacha/shop economy elsewhere)
   // NOTE: initialLearningLanguage is NOT accepted from the client body — server-side only
-  const { streak, coins, streakFreezeActive, targetLanguage, learningLanguage, age, job, salary, isOnboarded, cefrLevel, ageBand } = body;
+  // WS1: name + image (emoji avatar) added for the kid-friendly onboarding flow
+  const { streakFreezeActive, targetLanguage, learningLanguage, age, job, salary, isOnboarded, cefrLevel, ageBand, name, image } = body;
 
   const data: Record<string, unknown> = {};
-  if (streak !== undefined) data.streak = streak;
-  if (coins !== undefined) data.coins = coins;
   if (streakFreezeActive !== undefined) data.streakFreezeActive = streakFreezeActive;
   if (targetLanguage !== undefined) data.targetLanguage = targetLanguage;
   if (age !== undefined) data.age = age;
@@ -61,6 +70,8 @@ export async function PATCH(req: NextRequest) {
   if (salary !== undefined) data.salary = salary;
   if (isOnboarded !== undefined) data.isOnboarded = isOnboarded;
   if (cefrLevel !== undefined) data.cefrLevel = cefrLevel;
+  if (name !== undefined) data.name = typeof name === "string" ? name.slice(0, 60) : null;
+  if (image !== undefined) data.image = typeof image === "string" ? image.slice(0, 16) : null;
   if (ageBand !== undefined) {
     if (ageBand !== "7-10" && ageBand !== "11-15") {
       return NextResponse.json({ error: "ageBand must be '7-10' or '11-15'" }, { status: 400 });
@@ -89,5 +100,5 @@ export async function PATCH(req: NextRequest) {
   const redis = await getRedis();
   await redis.del(`user:${userId}`);
 
-  return NextResponse.json(user);
+  return NextResponse.json(toSafeUser(user));
 }

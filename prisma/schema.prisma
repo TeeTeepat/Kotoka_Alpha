@@ -22,6 +22,8 @@ model Deck {
   locationLng  Float?
   locationName String?
   imageBase64  String?  @db.Text
+  /** Weather at the moment of the AR snap (Living Sandbox) — feeds atmospheric flashcards. */
+  weatherAtSnap String?
   words        Word[]
   user         User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
 }
@@ -48,6 +50,8 @@ model Word {
   becauseText     String?
   ambientSoundUrl String?
   photoUrl        String?
+  /** AR pill position on the snap photo (Living Sandbox), normalized {x,y,w,h} 0-1. */
+  cropBox         Json?
   deck            Deck            @relation(fields: [deckId], references: [id], onDelete: Cascade)
   evidence        EvidenceStore[]
   journalEntries  JournalEntry[]
@@ -89,6 +93,9 @@ model User {
   checkpointDoneAt        DateTime?
   peakBPendingAt          DateTime?
   dayObjectWordId         String?
+  lineParentUserId        String?
+  linePairCode            String?
+  linePairCodeExpiresAt   DateTime?
   gachaItems              GachaItem[]
   accounts                Account[]
   sessions                Session[]
@@ -97,6 +104,18 @@ model User {
   journalEntries          JournalEntry[]
   collectibles            Collectible[]
   topicShimmers           TopicShimmer[]
+  voiceClips              VoiceClip[]
+}
+
+model VoiceClip {
+  id          String   @id @default(cuid())
+  userId      String
+  word        String?
+  filePath    String
+  durationMs  Int
+  pronScore   Int?
+  createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Account {
