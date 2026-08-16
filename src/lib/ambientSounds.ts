@@ -119,3 +119,23 @@ export function getSoundForTags(emotion: string, atmosphere: string): AmbientSou
 export function getAllSounds(): AmbientSound[] {
   return Object.values(SOUND_LIBRARY);
 }
+
+/**
+ * Resolve a stored ambient value into a playable URL. Accepts a library id
+ * ("S03"), a raw URL, or a loose tag/name ("cafe"). Returns null when
+ * nothing matches — callers should then simply omit the sound.
+ */
+export function resolveAmbientUrl(value: string | null | undefined): string | null {
+  if (!value) return null;
+  if (SOUND_LIBRARY[value]) return SOUND_LIBRARY[value].url;
+  if (/^https?:\/\//i.test(value) || value.startsWith("/")) return value;
+  const fold = (s: string) =>
+    s.toLowerCase().normalize("NFD").replace(/\p{M}/gu, "");
+  const needle = fold(value);
+  const match = Object.values(SOUND_LIBRARY).find(
+    (s) =>
+      s.tags.some((t) => fold(t).includes(needle) || needle.includes(fold(t))) ||
+      fold(s.name).includes(needle)
+  );
+  return match?.url ?? null;
+}

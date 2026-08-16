@@ -248,7 +248,7 @@ function GachaMachine({
                   </Link>
                 ) : (
                   <Link
-                    href="/luggage"
+                    href="/profile"
                     className="flex-1 py-3 rounded-2xl btn-gold text-center font-heading font-extrabold text-sm"
                   >
                     View 🧳

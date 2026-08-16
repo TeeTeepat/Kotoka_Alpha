@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  LogOut, Heart, Flame, Coins, Target, Trophy, ChevronRight, MapPin,
+  LogOut, Heart, Flame, Coins, Target, Trophy, MapPin,
 } from "lucide-react";
 import { useSoundPlayer } from "@/components/hooks/useSoundPlayer";
 import type { GachaItemData } from "@/types";
@@ -48,9 +48,6 @@ function LuggageCard({ items }: { items: GachaItemData[] }) {
     <div className="card-base p-4 space-y-3">
       <div className="flex items-center justify-between">
         <h2 className="font-heading font-extrabold text-base text-dark">🧳 My Luggage</h2>
-        <Link href="/luggage" className="flex items-center gap-1 text-xs font-body text-primary">
-          View all <ChevronRight className="w-3 h-3" />
-        </Link>
       </div>
 
       {items.length === 0 ? (
@@ -147,9 +144,6 @@ function MiniMemoryMap({ pins }: { pins: MapPin[] }) {
           <MapPin className="w-4 h-4 text-primary" />
           <h2 className="font-heading font-extrabold text-base text-dark">Memory Map</h2>
         </div>
-        <Link href="/memory-map" className="flex items-center gap-1 text-xs font-body text-primary">
-          View all <ChevronRight className="w-3 h-3" />
-        </Link>
       </div>
 
       {pins.length === 0 && (

@@ -26,6 +26,19 @@ const SOUND_MAP: Record<SoundEffect, string> = {
 let sndInstance: import("snd-lib").default | null = null;
 let loadPromise: Promise<void> | null = null;
 
+// WS1: simple persisted mute flag, toggled from the settings sheet.
+const MUTE_KEY = "kotoka_sound_muted";
+
+export function isSoundMuted(): boolean {
+  if (typeof window === "undefined") return false;
+  return localStorage.getItem(MUTE_KEY) === "1";
+}
+
+export function setSoundMuted(muted: boolean) {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(MUTE_KEY, muted ? "1" : "0");
+}
+
 function getSnd(): Promise<void> {
   if (loadPromise) return loadPromise;
   loadPromise = import("snd-lib").then(({ default: Snd }) => {
@@ -53,7 +66,7 @@ export function useSoundPlayer() {
   }, []);
 
   const play = useCallback((effect: SoundEffect) => {
-    if (!sndInstance) return;
+    if (!sndInstance || isSoundMuted()) return;
     const key = SOUND_MAP[effect];
     try {
       sndInstance.play(key, { volume: 0.4 });

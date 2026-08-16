@@ -9,9 +9,11 @@ import type { DeckWithWords } from "@/types";
 interface ForgettingCurveWidgetProps {
   decks: DeckWithWords[];
   loading: boolean;
+  /** WS1: where the review CTA sends the learner — defaults to the legacy /review hub. */
+  targetHref?: string;
 }
 
-export default function ForgettingCurveWidget({ decks, loading }: ForgettingCurveWidgetProps) {
+export default function ForgettingCurveWidget({ decks, loading, targetHref = "/review" }: ForgettingCurveWidgetProps) {
   const router = useRouter();
   const gradientId = useId().replace(/:/g, "");
 
@@ -102,7 +104,7 @@ export default function ForgettingCurveWidget({ decks, loading }: ForgettingCurv
             <motion.button
               whileHover={{ scale: 1.03 }}
               whileTap={{ scale: 0.97 }}
-              onClick={() => router.push("/review")}
+              onClick={() => router.push(targetHref)}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-orange-100 text-orange-700 rounded-full font-body text-xs font-semibold flex-shrink-0 hover:bg-orange-200 transition-colors"
             >
               <AlertTriangle className="w-3 h-3" />

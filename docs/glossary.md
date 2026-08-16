@@ -1,0 +1,23 @@
+# Glossary — Living Sandbox
+
+- **Living Sandbox** — the home world at `/`: the child's snapped words living as collectibles under real time-of-day/weather tint. Opens on the world, never a menu.
+- **Nine-Step Daily Loop** — one session/day on one snapped object: Snap, Confirm, Sensory Tags, Listen, Flashcard, Read/Write, Pronunciation, Second Take, Dictation. Lives at `/daily`.
+- **Snap** — the single daily photo. Seeds the day's whole word set, captures ambient sound, and stays the word's permanent visual identity.
+- **Confirm** — yes/no on the proposed label; ungates the seed and spawns the Path Picker.
+- **Second Take / checkpoint** — recorded full sentence; the only step with stakes. Writes `EvidenceStore`, promotes the day's word, triggers Peak A.
+- **Peak A** — deterministic bloom celebration on checkpoint completion. Reads session state only — never a score.
+- **Peak B** — end-of-day moment: today's object settles into the world with its real photo/light/weather. Overnight reveal if the app was closed instead.
+- **Grove** — the set of promoted words, each freely replayable (photo card + because-text + ambient sound). Not a place; gates nothing; outside the session time budget.
+- **Shimmer** — cosmetic glow on a (topic, CEFR band) whose words are all promoted. Boolean, snapshotted once, never revoked.
+- **Path Picker** — three in-world gates after Confirm: Sound Path (Listen+Flashcard), Word Path (Read/Write+Sensory Tags), Quiet Path (Dictation+Sensory Tags). Starting routes, always skippable.
+- **Fixed SRS ladder** — 1d/3d/1w/3w/2mo intervals; "Got it" climbs a rung, "Still learning" holds. Replaces SM-2.
+- **k / r / N** — new words per day / review slots (always 2) / total. 4+2 for ages 7-10, 6+2 for 11-15.
+- **Promote-only** — a word is never denied or demoted, only delayed. No lapse resets.
+- **EvidenceStore** — backend record of checkpoint sentences; the only scored write path.
+- **JournalEntry** — unscored activity log (gate choices, world-state, practice traces).
+- **Collectible** — a word's placed object in the sandbox: dim until celebrated, bloomed after; drag-to-rearrange.
+- **Dim state** — "exists but not yet celebrated." Never accompanied by counters; fades into scenery after 7 days.
+- **L0-L3 compositing** — silhouette (body plan × size) / texture overlay / sensory fx / global world tint. Placeholder CSS/SVG for now.
+- **neighbours(seed, k)** — the word-expansion engine (Gemini-backed): photo label → k related CEFR-level words.
+- **Age band** — 7-10 vs 11-15; controls sizing, task shape, replay caps, tone. Coexists with CEFR level.
+- **Curiosity bubble** — one quiet daily hint near a related object; noticed, never announced.
